@@ -1,75 +1,93 @@
-       /* XDCtools Header files */
-       #include <xdc/std.h>
-       #include <xdc/runtime/Assert.h>
-       #include <xdc/runtime/Error.h>
-       #include <xdc/runtime/System.h>
-       /* BIOS Header files */
-       #include <ti/sysbios/BIOS.h>
-       #include <ti/sysbios/knl/Task.h>
-       #include <ti/sysbios/knl/Semaphore.h>
-       #include <ti/sysbios/knl/Clock.h>
-       /* TI-RTOS Header files */
-       #include <ti/drivers/PIN.h>
-       #include <ti/drivers/power/PowerCC26XX.h>
-       /* Board Header files */
-       #include "Board.h"
-       /* EasyLink API Header files */
-       #include "easylink/EasyLink.h"
-       /* Application header files */
-       #include "smartrf_settings/smartrf_settings.h"
-       /* Runtime Library Header Files */
-       #include <stdlib.h>
-       #include <string.h>
-       /* Driverlib Header files */
-       #include <ti/devices/DeviceFamily.h>
-       #include DeviceFamily_constructPath(driverlib/trng.h)
-       /*Timer Header Files */
-       #include <ti/sysbios/knl/Clock.h>
-       #include <ti/sysbios/hal/Seconds.h>
-       /* Pin driver handle */
-       static PIN_Handle pinHandle;
-       
-       /*Defination for taskTimer */
-       Clock_Params clockParamsTimer;
-       Clock_Handle myclock;
-       Error_Block eb;
-       
-       /*
-        * Application LED pin configuration table:
-        *   - All LEDs board LEDs are off.
-        */
-       PIN_Config pinTable[] = {
-           Board_PIN_LED1 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-           Board_PIN_LED2 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-           PIN_TERMINATE
-       };
-       
-       int counter1 = 0, counter2 = 0;
-       void taskThread(UArg arg0, UArg arg1);
-       void taskTimer(UArg arg1)//tick=1s
-       {
-           counter1++;
-       }
-       void taskThread(UArg arg0, UArg arg1)
-       {
-           counter2++;
-       }
-       void main()
-       {
-           Error_init(&eb);
-           Clock_Params_init(&clockParamsTimer);
-           clockParamsTimer.period = 100000;//1s
-           clockParamsTimer.startFlag = TRUE;
-           clockParamsTimer.arg = (UArg)0x5555;
-           myclock = Clock_create(taskTimer, 100, &clockParamsTimer, &eb);
-       
-           Task_Struct taskStruct1;
-           Task_Params taskParams1;
-           Task_Params_init(&taskParams1);
-           taskParams1.stackSize = 512;
-           taskParams1.priority = 17;
-           Task_construct(&taskStruct1, (Task_FuncPtr)taskThread, &taskParams1, NULL);
-       
-           Board_initGeneral();
-           BIOS_start();
-       }
+/* XDCtools Header files */
+#include <xdc/std.h>
+#include <xdc/runtime/Assert.h>
+#include <xdc/runtime/Error.h>
+#include <xdc/runtime/System.h>
+/* BIOS Header files */
+#include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Semaphore.h>
+#include <ti/sysbios/knl/Clock.h>
+/* TI-RTOS Header files */
+#include <ti/drivers/PIN.h>
+#include <ti/drivers/power/PowerCC26XX.h>
+/* Board Header files */
+#include "Board.h"
+/* EasyLink API Header files */
+#include "easylink/EasyLink.h"
+/* Application header files */
+#include "smartrf_settings/smartrf_settings.h"
+/* Runtime Library Header Files */
+#include <stdlib.h>
+#include <string.h>
+/* Driverlib Header files */
+#include <ti/devices/DeviceFamily.h>
+#include DeviceFamily_constructPath(driverlib/trng.h)
+/*Timer Header Files */
+#include <ti/sysbios/knl/Clock.h>
+#include <ti/sysbios/hal/Seconds.h>
+/* Pin driver handle */
+static PIN_Handle pinHandle;
+
+/*Defination for taskTimer */
+Clock_Params clockParamsTimer;
+Clock_Handle myclock;
+Error_Block ebTaskTimer, ebTaskThread1, ebTaskThread2;
+
+/*
+ * Application LED pin configuration table:
+ *   - All LEDs board LEDs are off.
+ */
+PIN_Config pinTable[] = {
+    Board_PIN_LED1 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    Board_PIN_LED2 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    PIN_TERMINATE
+};
+
+int counter1=0,counter2=0,counter3=0,counter4=0;
+void taskThread1(UArg arg0, UArg arg1);
+void taskThread2(UArg arg0, UArg arg1);
+void taskTimer(UArg arg1)//tick=1s
+{
+    counter1++;
+}
+void taskThread1(UArg arg0, UArg arg1)
+{
+    counter2++;
+}
+void taskThread2(UArg arg0, UArg arg1)
+{
+    counter3++;
+    
+}
+
+void main()
+{
+    Error_init(&ebTaskTimer);
+    Clock_Params_init(&clockParamsTimer);
+    clockParamsTimer.period = 100000;//1 second
+    clockParamsTimer.startFlag = TRUE;
+    clockParamsTimer.arg = (UArg)0x5555;
+    myclock=Clock_create(taskTimer, 100, &clockParamsTimer, &ebTaskTimer);
+
+    Error_init(&ebTaskThread1);
+    Task_Struct taskStruct1;
+    Task_Params taskParams1;
+    Task_Params_init(&taskParams1);
+    taskParams1.stackSize=512;
+    //taskParams1.priority=2;
+    Task_construct(&taskStruct1,(Task_FuncPtr)taskThread1,&taskParams1,&ebTaskThread1);
+
+    Error_init(&ebTaskThread2);
+    Task_Struct taskStruct2;
+    Task_Params taskParams2;
+    Task_Params_init(&taskParams2);
+    taskParams2.stackSize=512;
+  //  taskParams2.priority=2;
+    Task_construct(&taskStruct2,(Task_FuncPtr)taskThread2,&taskParams2,&ebTaskThread2);
+
+
+
+    Board_initGeneral();
+    BIOS_start();
+}
