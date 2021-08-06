@@ -2,7 +2,7 @@
 - 👀 I’m interested in C#, C++, PLC, Micro Controllers
 - 🌱 I’m currently learning Micro Controller
 - 💞️ I’m looking to collaborate on TI CC1350
-- 📫 How to reach me ...
+- 📫 How to reach me yildirimlutfi@gmail.com
 
 <!---
 yildirimlutfi/yildirimlutfi is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
