@@ -84,30 +84,8 @@ void fonksiyonSemaphore2(UArg uarg1, UArg uarg2)
     }
 }
 
-void taskTimer(UArg arg1)//tick=1s
-{
-    //Task_yield();//taskYIELD() is used to request a context switch to another task.taskThread1 ile taskThread2 arasi gecis icin kullanildi
-}
-
-void taskInit()
-{
-
-}
-
 void main()
 {
-   // taskInit();
-
-    Error_init(&ebTaskTimer);//timer fonksiyonu olusturuldu
-    Clock_Params_init(&clockParamsTimer);
-    clockParamsTimer.period = 100000;//1us*100000=1 saniye
-    clockParamsTimer.startFlag = TRUE;
-    handleTaskTimer=Clock_create(taskTimer, 100, &clockParamsTimer, &ebTaskTimer);
-    if(handleTaskTimer==NULL)
-    {
-     System_abort("taskTimer create failed");
-    }
-
     Task_Params_init(&taskParamsSemaphore1);
     taskParamsSemaphore1.stackSize=512;
     taskParamsSemaphore1.priority=2;
