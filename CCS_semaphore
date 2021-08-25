@@ -40,48 +40,78 @@ Clock_Params clockParamsTimer;
 Clock_Handle handleTaskTimer;
 Error_Block ebTaskTimer;
 
-
 /*Defination for semaphore*/
 Semaphore_Struct structSemaphore;
 Semaphore_Handle handleSemaphore;
 Task_Struct taskStructSsemaphore1,taskStructSsemaphore2;
-Error_Block errorBlockSemaphore;
-Task_Params taskParamsSemaphore;
-Semaphore_Params paramsSemaphore;
+static Task_Params taskParamsSemaphore1,taskParamsSemaphore2;
 
 
+void fonksiyonSemaphore1done(UArg uarg1, UArg uarg2)
+{
+    Task_sleep(10000);
+    Semaphore_post(handleSemaphore);
+    Task_sleep(10000);
+}
 
-int counter1=0,counter2=0,counter3=0,counter4=0;
+void fonksiyonSemaphore2done(UArg uarg1, UArg uarg2)
+{
+    Task_sleep(10000);
+    Semaphore_post(handleSemaphore);
+    Task_sleep(10000);
+}
 
 void fonksiyonSemaphore1(UArg uarg1, UArg uarg2)
 {
+    /* Create a semaphore for Async*/
+    Semaphore_Params paramsSemaphore;
+    Error_Block errorBlockSemaphore;
+    /* Init params */
+    Semaphore_Params_init(&paramsSemaphore);
+    Error_init(&errorBlockSemaphore);
+    /* Create semaphore instance */
+    handleSemaphore = Semaphore_create(0, &paramsSemaphore, &errorBlockSemaphore);
+    if(handleSemaphore == NULL)
+    {
+        System_abort("Semaphore creation failed");
+    }
 
-    handleSemaphore= Semaphore_create(1, &paramsSemaphore, &errorBlockSemaphore);
-    Semaphore_pend(handleSemaphore,BIOS_WAIT_FOREVER);
-    counter2++;
-    Semaphore_post(handleSemaphore);
-    Task_sleep(1000);
-    PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+    while(1)
+    {
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED1,!PIN_getOutputValue(Board_PIN_LED1));
+        Semaphore_pend(handleSemaphore, 100000);
+    }
 }
 
 void fonksiyonSemaphore2(UArg uarg1, UArg uarg2)
 {
-    handleSemaphore= Semaphore_create(1, &paramsSemaphore, &errorBlockSemaphore);
-    Semaphore_pend(handleSemaphore,BIOS_WAIT_FOREVER);
-    counter3++;
-    Semaphore_post(handleSemaphore);
-    Task_sleep(1000);
-    PIN_setOutputValue(ledPinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+    /* Create a semaphore for Async*/
+    Semaphore_Params paramsSemaphore;
+    Error_Block errorBlockSemaphore;
+    /* Init params */
+    Semaphore_Params_init(&paramsSemaphore);
+    Error_init(&errorBlockSemaphore);
+    /* Create semaphore instance */
+    handleSemaphore = Semaphore_create(0, &paramsSemaphore, &errorBlockSemaphore);
+    if(handleSemaphore == NULL)
+    {
+        System_abort("Semaphore creation failed");
+    }
+
+    while(1)
+    {
+        Task_sleep(10000);
+        PIN_setOutputValue(ledPinHandle, Board_PIN_LED2,!PIN_getOutputValue(Board_PIN_LED2));
+        Semaphore_pend(handleSemaphore, 100000);
+    }
 }
 
 void taskTimer(UArg arg1)//tick=1s
 {
-    Task_yield();//taskYIELD() is used to request a context switch to another task.taskThread1 ile taskThread2 arasi gecis icin kullanildi
-    counter1++;
+    //Task_yield();//taskYIELD() is used to request a context switch to another task.taskThread1 ile taskThread2 arasi gecis icin kullanildi
 }
 
-
-void main()
+void taskInit()
 {
     Error_init(&ebTaskTimer);//timer fonksiyonu olusturuldu
     Clock_Params_init(&clockParamsTimer);
@@ -93,24 +123,20 @@ void main()
      System_abort("taskTimer create failed");
     }
 
+    Task_Params_init(&taskParamsSemaphore1);
+    taskParamsSemaphore1.stackSize=512;
+    taskParamsSemaphore1.priority=1;
+    Task_construct(&taskStructSsemaphore1,fonksiyonSemaphore1,&taskParamsSemaphore1,NULL);
+
+    Task_Params_init(&taskParamsSemaphore2);
+    taskParamsSemaphore2.stackSize=512;
+    taskParamsSemaphore2.priority=3;
+    Task_construct(&taskStructSsemaphore2,fonksiyonSemaphore2,&taskParamsSemaphore2,NULL);
+}
+
+void main()
+{
+    taskInit();
     Board_initGeneral();
-
-    Task_Params_init(&taskParamsSemaphore);
-    taskParamsSemaphore.stackSize=512;
-    taskParamsSemaphore.priority=1;
-    Task_construct(&taskStructSsemaphore1,(Task_FuncPtr)fonksiyonSemaphore1,&taskParamsSemaphore,&errorBlockSemaphore);
-
-    taskParamsSemaphore.stackSize=512;
-    taskParamsSemaphore.priority=2;
-    Task_construct(&taskStructSsemaphore2,(Task_FuncPtr)fonksiyonSemaphore2,&taskParamsSemaphore,&errorBlockSemaphore);
-
-
-    paramsSemaphore.mode= SemaphoreP_Mode_COUNTING;
-
-
-    Semaphore_Params_init(&paramsSemaphore);
-    Semaphore_construct(&structSemaphore,1,&paramsSemaphore);
-    handleSemaphore=Semaphore_handle(&structSemaphore);
-
     BIOS_start();
 }
