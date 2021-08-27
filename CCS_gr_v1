@@ -74,10 +74,10 @@
 #include "HC165.h"
 #include "HC595.h"
 
-#define Led_Power           IOID_19
-#define Led_Receiving       IOID_12
-#define Led_Data            IOID_13
-#define Led_Error           IOID_14
+#define doLedPower           IOID_19
+#define doLedReceiving       IOID_12
+#define doLedData            IOID_13
+#define doLedError           IOID_14
 
 #define ext_control_pin     IOID_30
 
@@ -359,10 +359,10 @@ PIN_Config pinTable[] =
     IOID_21 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,      //dijital 2 giriþi
     IOID_22 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,      //dijital 3 giriþi
     IOID_23 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,      //dijital 4 giriþi
-    Led_Power | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-    Led_Receiving | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-    Led_Data | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-    Led_Error | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    doLedPower | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    doLedReceiving | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    doLedData | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    doLedError | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
     ext_control_pin | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
     PIN_TERMINATE
 };
@@ -643,17 +643,17 @@ void rxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
 
             if((role_ileri!=0) || (role_geri!=0) || (role_sol!=0) || (role_sag!=0) || (role_yukari!=0) || (role_asagi!=0))
             {
-                PIN_setOutputValue(ledPinHandle, Led_Data,1);   //Data ledi açýlýyor
+                PIN_setOutputValue(ledPinHandle, doLedData,1);   //Data ledi açýlýyor
             }
             else
             {
-                PIN_setOutputValue(ledPinHandle, Led_Data,0);   //Data ledi kapanýyor
+                PIN_setOutputValue(ledPinHandle, doLedData,0);   //Data ledi kapanýyor
             }
 
 
             //Rx led toggle
             PIN_setOutputValue(pinHandle, Board_LED2,!PIN_getOutputValue(Board_LED2));
-            PIN_setOutputValue(ledPinHandle, Led_Receiving,!PIN_getOutputValue(Led_Receiving));     //Receiving ledi toggle
+            PIN_setOutputValue(ledPinHandle, doLedReceiving,!PIN_getOutputValue(doLedReceiving));     //Receiving ledi toggle
 
             //Tx taskýný aktif ediyor
             Semaphore_post(txDoneSem);
@@ -819,8 +819,8 @@ static void rfEasyLinkRxFnx(UArg arg0, UArg arg1)
             //role_acil=1;
             rolecikis();
             //PIN_setOutputValue(ledPinHandle, IOID_11,0); //emniyet rölesi
-            PIN_setOutputValue(ledPinHandle, Led_Receiving,0);  //Receiving ledi kapanýyor
-            PIN_setOutputValue(ledPinHandle, Led_Data,0);   //Data ledi kapanýyor
+            PIN_setOutputValue(ledPinHandle, doLedReceiving,0);  //Receiving ledi kapanýyor
+            PIN_setOutputValue(ledPinHandle, doLedData,0);   //Data ledi kapanýyor
         }
 
 
@@ -911,10 +911,10 @@ int main(void)
     PIN_setOutputValue(ledPinHandle, Board_LED2,0); //rx ledi açýlýþta sýfýrlanýyor
     PIN_setOutputValue(ledPinHandle, IOID_11,1);    //emniyet rölesi açýlýyor
 
-    PIN_setOutputValue(ledPinHandle, Led_Power,1);  //Power Ledi açýlýyor
-    PIN_setOutputValue(ledPinHandle, Led_Error,0);  //Error ledi kapanýyor
-    PIN_setOutputValue(ledPinHandle, Led_Receiving,0);  //Receiving ledi kapanýyor
-    PIN_setOutputValue(ledPinHandle, Led_Data,0);   //Data ledi kapanýyor
+    PIN_setOutputValue(ledPinHandle, doLedPower,1);  //Power Ledi açýlýyor
+    PIN_setOutputValue(ledPinHandle, doLedError,0);  //Error ledi kapanýyor
+    PIN_setOutputValue(ledPinHandle, doLedReceiving,0);  //Receiving ledi kapanýyor
+    PIN_setOutputValue(ledPinHandle, doLedData,0);   //Data ledi kapanýyor
     PIN_setOutputValue(ledPinHandle, ext_control_pin, 0);
     //Seçme butonunun okunmasý
     secme_buton=PIN_getInputValue(IOID_15);
