@@ -8,17 +8,17 @@
 //klasör içerisindeki dosyalar diðer 2.4ghz projelerinde kullanýlan dosyalar ile deðiþtirilmelidir.
 
 
-//Tx_Rx_baslangýc_frekansi örneðin 863000000 seçildiði zaman frekans seçiminde baþlangýç frekansý 863mhz olarak ayarlanmaktadýr
+//defRxTxBaslangicFrekans örneðin 863000000 seçildiði zaman frekans seçiminde baþlangýç frekansý 863mhz olarak ayarlanmaktadýr
 #ifdef freq_863
-#define Tx_Rx_baslangýc_frekansi 863000000      //863000000     433000000
-//Tx_Rx_frekans_kademesi örneðin 50000 seçili olduðu zaman, frekans kanal seçimi sýrasýnda frekans farký 2mhz olmaktadýr
-#define Tx_Rx_frekans_kademesi 50000
-//Tx_Rx_power_db örneðin 14 olarak ayarlandýðý zaman, Tx power 14 olarak ayarlanmaktadýr.
-#define Tx_Rx_power_db 14
-//Tx_Rx_init 3 farklý þekilde ayarlanmaktadýr, bunlar: EasyLink_Phy_50kbps2gfsk    EasyLink_Phy_625bpsLrm    EasyLink_Phy_Custom
+#define defRxTxBaslangicFrekans 863000000      //863000000     433000000
+//defRxTxFrekansKademesi örneðin 50000 seçili olduðu zaman, frekans kanal seçimi sýrasýnda frekans farký 2mhz olmaktadýr
+#define defRxTxFrekansKademesi 50000
+//defRxTxPowerDb örneðin 14 olarak ayarlandýðý zaman, Tx power 14 olarak ayarlanmaktadýr.
+#define defRxTxPowerDb 14
+//defRxTxInit 3 farklý þekilde ayarlanmaktadýr, bunlar: EasyLink_Phy_50kbps2gfsk    EasyLink_Phy_625bpsLrm    EasyLink_Phy_Custom
 //Bunlardan EasyLink_Phy_Custom seçildiði zaman, proje içerisindeki smartrf_settings klasöründeki
 //smartrf_settings.c dosyasýndaki ayarlarý uygulanmaktadýr.
-#define Tx_Rx_init EasyLink_Phy_Custom  //Tx_Rx init
+#define defRxTxInit EasyLink_Phy_Custom  //Tx_Rx init
 //EasyLink_Phy_50kbps2gfsk    EasyLink_Phy_625bpsLrm    EasyLink_Phy_Custom
 //#include "smartrf_settings.c"
 #endif
@@ -70,18 +70,18 @@
 #include <ti/drivers/ADC.h>
 #include <ti/drivers/I2C.h>
 
-//giriþ çýkýþ fonksiyonlarý include
+
 #include "HC165.h"
 #include "HC595.h"
 
-#define doLedPower           IOID_19
-#define doLedReceiving       IOID_12
-#define doLedData            IOID_13
-#define doLedError           IOID_14
+#define defLedPower           IOID_19
+#define defLedReceiving       IOID_12
+#define defLedData            IOID_13
+#define defLedError           IOID_14
 
-#define ext_control_pin     IOID_30
+#define defExtControlPin     IOID_30
 
-#define data_alinmadi_zamani    20000       //baðlantý hatasý durumu tüm röleleri sýfýrla, acili aç //eski 500000
+#define defDataAlinamadiZamani    20000       //baðlantý hatasý durumu tüm röleleri sýfýrla, acili aç //eski 500000
 
 #define Lo(param) ((char *)&param)[0]
 #define Hi(param) ((char *)&param)[1]
@@ -97,17 +97,16 @@
 static PIN_Handle ledPinHandle;
 static PIN_State ledPinState;
 
-#define ADCTASKSTACKSIZE     (768)
-Task_Struct ADCtaskStruct;
-Char ADCtaskStack[ADCTASKSTACKSIZE];
-uint16_t adcValue1,adcValue2,adcValue3,adcValue4;
-uint16_t AN1=0,AN2=0,AN3=0,AN4=0,AN1_giden=0,AN2_giden=0;
-ADC_Handle   adc1,adc2,adc3,adc4;
-ADC_Params   ADCparams1,ADCparams2,ADCparams3,ADCparams4;
-int_fast16_t res1,res2,res3,res4;
-uint8_t Dig1=0,Dig2=0,Dig3=0,Dig4=0;
-uint8_t    frekans_=0;
-uint8_t    kanal_=0;
+
+uint16_t adcValue1,adcValue2;
+uint16_t uint16analog1=0,uint16analog2=0,uint16analog3=0,uint16analog4=0;
+uint16_t uint16analogGiden1=0,uint16analogGiden2=0;
+ADC_Handle   handleAdc1,handleAdc2,handleAdc3,handleAdc4;
+ADC_Params   paramsADC1,paramsADC2,paramsADC3,paramsADC4;
+int_fast16_t handleADC1,handleADC2,handleADC3,handleADC4;
+uint8_t uint18digitalInput1=0,uint18digitalInput2=0,uint18digitalInput3=0,uint18digitalInput4=0;
+uint8_t    uint18frekans=0;
+uint8_t    uint18kanal=0;
 
 I2C_Handle      i2c;
 I2C_Params      i2cParams;
@@ -118,26 +117,24 @@ I2C_Transaction i2cTransaction4;
 uint8_t         i2ctxBuffer[64];
 uint8_t         i2crxBuffer[64];
 uint8_t         i2ctxBuffer2[64];
-
 uint8_t         i2ctxBuff[64];
 uint8_t         i2crxBuff[64];
-bool transferDone = false;
-uint8_t         default_frekans=0,default_kanal=0,default_ayar_yap=0;
-uint8_t         frekans_okunan=0,kanal_okunan=0,secme_buton=1;
+bool i2cTransferDone = false;
 
-uint8_t buton_ileri2=0,buton_ileri1=0,buton_f12_2=0,buton_f12_1=0,buton_f34_2=0,buton_f34_1=0,buton_geri2=0,buton_geri1=0;
-uint8_t buton_yukari1=0,buton_yukari2=0,buton_sol2=0,buton_sol1=0,buton_sag2=0,buton_sag1=0,buton_asagi1=0,buton_asagi2=0;
-uint8_t buton_acil_stop=0,buton_kanca1=0,buton_kanca2=0;
-uint32_t data_alinmadi=0;
-uint32_t role_sayac=0;
-uint32_t role_ac=0;
-uint32_t adc_counter=0;
-uint16_t loadcell_1_=0, dara_1_=0, loadcell_2_=0, dara_2_=0;
-uint8_t gelen_paket_sayisi=0;
-uint32_t frekans_atlama_sayaci=0;
+uint8_t         uint18okunanFrekans=0,uint18secmeButon=1;
 
-Watchdog_Handle watchdogHandle;
-extern uint32_t WatchdogCC26XX_convertMsToTicks(Watchdog_Handle watchdogHandle,uint32_t milliseconds);
+bool buton_ileri2, buton_ileri1=0,buton_f12_2=0,buton_f12_1=0,buton_f34_2=0,buton_f34_1=0,buton_geri2=0,buton_geri1=0;
+bool buton_yukari1=0,buton_yukari2=0,buton_sol2=0,buton_sol1=0,buton_sag2=0,buton_sag1=0,buton_asagi1=0,buton_asagi2=0;
+bool buton_acil_stop=0,buton_kanca1=0,buton_kanca2=0;
+
+uint32_t uint32DataAlinamadi=0;
+uint32_t uint32RoleSayac=0;
+uint16_t uint16loadCell1=0, uint16loadCellDara1=0, uint16loadCell2=0, uint16loadCellDara2=0;
+uint8_t uint18gelenPaketSayisi=0;
+uint32_t uint32frekansAtlamaSayaci=0;
+
+Watchdog_Handle watchDogHandle;
+extern uint32_t WatchdogCC26XX_convertMsToTicks(Watchdog_Handle watchDogHandle,uint32_t milliseconds);
 #define WATCHDOG_COUNT 1
 #define WATCHDOG_TIMEOUT_MS     1000        //watchdog'un kaç milisaniye olacaðý durumu
 WatchdogCC26XX_Object watchdog_objects[WATCHDOG_COUNT];
@@ -156,8 +153,8 @@ void watchdog_init()
     Watchdog_init();
     Watchdog_Params params;
     Watchdog_Params_init(&params);
-    watchdogHandle = Watchdog_open(0, &params);
-    Watchdog_setReload(watchdogHandle, WatchdogCC26XX_convertMsToTicks(watchdogHandle,WATCHDOG_TIMEOUT_MS));
+    watchDogHandle = Watchdog_open(0, &params);
+    Watchdog_setReload(watchDogHandle, WatchdogCC26XX_convertMsToTicks(watchDogHandle,WATCHDOG_TIMEOUT_MS));
     /* Avoid standby to keep the watchdog running */
     Power_setConstraint(PowerCC26XX_SB_DISALLOW);
 }
@@ -165,7 +162,7 @@ void watchdog_init()
 //watchdog'un kaç milisaniye olacaðýný ayarlayan fonksiyon
 void watchdog_kickWatchdog()
 {
-    Watchdog_setReload(watchdogHandle, WatchdogCC26XX_convertMsToTicks(watchdogHandle,WATCHDOG_TIMEOUT_MS));
+    Watchdog_setReload(watchDogHandle, WatchdogCC26XX_convertMsToTicks(watchDogHandle,WATCHDOG_TIMEOUT_MS));
 }
 
 //TX TASK
@@ -191,10 +188,10 @@ static void transferCallback(I2C_Handle handle, I2C_Transaction *transac, bool r
 {
     // Set length bytes
     if (result) {
-        transferDone = true;
+        i2cTransferDone = true;
     } else {
         // Transaction failed, act accordingly...
-        transferDone = false;
+        i2cTransferDone = false;
     }
 }
 
@@ -207,13 +204,13 @@ void txDoneCb(EasyLink_Status status)
         /* Toggle LED1 to indicate TX */
         PIN_setOutputValue(ledPinHandle, IOID_1,!PIN_getOutputValue(IOID_1));
 
-        gelen_paket_sayisi++;
+        uint18gelenPaketSayisi++;
 
 #ifdef freq_atlama
-        EasyLink_setFrequency(((gelen_paket_sayisi%4)*Tx_Rx_frekans_kademesi)+(frekans_okunan*Tx_Rx_frekans_kademesi*4)+Tx_Rx_baslangýc_frekansi);
+        EasyLink_setFrequency(((uint18gelenPaketSayisi%4)*defRxTxFrekansKademesi)+(uint18okunanFrekans*defRxTxFrekansKademesi*4)+defRxTxBaslangicFrekans);
 #endif
 #ifdef freq_atlama2
-        EasyLink_setFrequency(((gelen_paket_sayisi%4)*35*Tx_Rx_frekans_kademesi)+(frekans_okunan*Tx_Rx_frekans_kademesi)+Tx_Rx_baslangýc_frekansi);
+        EasyLink_setFrequency(((uint18gelenPaketSayisi%4)*35*defRxTxFrekansKademesi)+(uint18okunanFrekans*defRxTxFrekansKademesi)+defRxTxBaslangicFrekans);
 #endif
 
     }
@@ -242,61 +239,57 @@ static void rfEasyLinkTxFnx(UArg arg0, UArg arg1)
 
 
     //RF_init, frekans ve rf_power set etme bölümü
-    EasyLink_init(Tx_Rx_init);
-    EasyLink_setFrequency((frekans_okunan*Tx_Rx_frekans_kademesi)+Tx_Rx_baslangýc_frekansi);
+    EasyLink_init(defRxTxInit);
+    EasyLink_setFrequency((uint18okunanFrekans*defRxTxFrekansKademesi)+defRxTxBaslangicFrekans);
 #ifdef freq_atlama
-    EasyLink_setFrequency((frekans_okunan*Tx_Rx_frekans_kademesi*4)+Tx_Rx_baslangýc_frekansi);
+    EasyLink_setFrequency((uint18okunanFrekans*defRxTxFrekansKademesi*4)+defRxTxBaslangicFrekans);
 #endif
 #ifdef freq_atlama2
-    EasyLink_setFrequency((frekans_okunan*Tx_Rx_frekans_kademesi)+Tx_Rx_baslangýc_frekansi);
+    EasyLink_setFrequency((uint18okunanFrekans*defRxTxFrekansKademesi)+defRxTxBaslangicFrekans);
 #endif
-    EasyLink_setRfPower(Tx_Rx_power_db);
+    EasyLink_setRfPower(defRxTxPowerDb);
 
     while(1)
     {
-        PIN_setOutputValue(ledPinHandle, ext_control_pin, !PIN_getOutputValue(ext_control_pin));
-        PIN_setOutputValue(ledPinHandle, ext_control_pin, !PIN_getOutputValue(ext_control_pin));
+        PIN_setOutputValue(ledPinHandle, defExtControlPin, !PIN_getOutputValue(defExtControlPin));
+        PIN_setOutputValue(ledPinHandle, defExtControlPin, !PIN_getOutputValue(defExtControlPin));
         //Analog ve dijital giriþleri okuma bölümü
-        res1 = ADC_convert(adc1, &adcValue1);
-        if (res1 == ADC_STATUS_SUCCESS)
+        handleADC1 = ADC_convert(handleAdc1, &adcValue1);
+        if (handleADC1 == ADC_STATUS_SUCCESS)
         {
-            AN1=adcValue1;
+            uint16analog1=adcValue1;
         }
-        res2 = ADC_convert(adc2, &adcValue2);
-        if (res2 == ADC_STATUS_SUCCESS)
+        handleADC2 = ADC_convert(handleAdc2, &adcValue2);
+        if (handleADC2 == ADC_STATUS_SUCCESS)
         {
-            AN2=adcValue2;
-        }
-
-        Dig1=!PIN_getInputValue(IOID_20);
-        Dig2=!PIN_getInputValue(IOID_21);
-        Dig3=!PIN_getInputValue(IOID_22);
-        Dig4=!PIN_getInputValue(IOID_23);
-
-
-        if(dara_1_>100)
-        {
-            AN1_giden=0.03891*loadcell_1_*(AN1-((2570*(dara_1_-101))/(loadcell_1_*10)));
-        }
-        else
-        {
-            AN1_giden=0.03891*loadcell_1_*(AN1+((2570*(101-dara_1_))/(loadcell_1_*10)));
+            uint16analog2=adcValue2;
         }
 
-        if(dara_2_>100)
+        uint18digitalInput1=!PIN_getInputValue(IOID_20);
+        uint18digitalInput2=!PIN_getInputValue(IOID_21);
+        uint18digitalInput3=!PIN_getInputValue(IOID_22);
+        uint18digitalInput4=!PIN_getInputValue(IOID_23);
+
+
+        if(uint16loadCellDara1>100)
         {
-            AN2_giden=0.03891*loadcell_2_*(AN2-((2570*(dara_2_-101))/(loadcell_2_*10)));
+            uint16analogGiden1=0.03891*uint16loadCell1*(uint16analog1-((2570*(uint16loadCellDara1-101))/(uint16loadCell1*10)));
         }
         else
         {
-            AN2_giden=0.03891*loadcell_2_*(AN2+((2570*(101-dara_2_))/(loadcell_2_*10)));
+            uint16analogGiden1=0.03891*uint16loadCell1*(uint16analog1+((2570*(101-uint16loadCellDara1))/(uint16loadCell1*10)));
+        }
+
+        if(uint16loadCellDara2>100)
+        {
+            uint16analogGiden2=0.03891*uint16loadCell2*(uint16analog2-((2570*(uint16loadCellDara2-101))/(uint16loadCell2*10)));
+        }
+        else
+        {
+            uint16analogGiden2=0.03891*uint16loadCell2*(uint16analog2+((2570*(101-uint16loadCellDara2))/(uint16loadCell2*10)));
         }
 
 
-
-        //AN1_giden=0.04*loadcell_1_*(AN1-((2530*dara_1_)/(loadcell_1_*100))); //3072   2530
-        //AN2_giden=0.04*loadcell_2_*(AN2-((2530*dara_2_)/(loadcell_2_*100))); //3072   2530
-        //AN1_giden=1000*AN1;
 
         EasyLink_TxPacket txPacket =  { {0}, 0, 0, {0} };
 
@@ -305,16 +298,16 @@ static void rfEasyLinkTxFnx(UArg arg0, UArg arg1)
         txPacket.payload[0] = (uint8_t)(seqNumber >> 8);
         txPacket.payload[1] = (uint8_t)(seqNumber++);
         txPacket.payload[2] = 0xBB;
-        txPacket.payload[3] = kanal_;
-        txPacket.payload[4] = Lo(AN1_giden);
-        txPacket.payload[5] = Hi(AN1_giden);
-        txPacket.payload[6] = Lo(AN2_giden);
-        txPacket.payload[7] = Hi(AN2_giden);
-        txPacket.payload[8] = Lo(AN3);
-        txPacket.payload[9] = Hi(AN3);
-        txPacket.payload[10]= Lo(AN4);
-        txPacket.payload[11]= Hi(AN4);
-        txPacket.payload[12]= (1*Dig1)+(2*Dig2)+(4*Dig3)+(8*Dig4);
+        txPacket.payload[3] = uint18kanal;
+        txPacket.payload[4] = Lo(uint16analogGiden1);
+        txPacket.payload[5] = Hi(uint16analogGiden1);
+        txPacket.payload[6] = Lo(uint16analogGiden2);
+        txPacket.payload[7] = Hi(uint16analogGiden2);
+        txPacket.payload[8] = Lo(uint16analog3);
+        txPacket.payload[9] = Hi(uint16analog3);
+        txPacket.payload[10]= Lo(uint16analog4);
+        txPacket.payload[11]= Hi(uint16analog4);
+        txPacket.payload[12]= (1*uint18digitalInput1)+(2*uint18digitalInput2)+(4*uint18digitalInput3)+(8*uint18digitalInput4);
 
         uint8_t i;
         for (i = 13; i < RFEASYLINKTXPAYLOAD_LENGTH; i++)
@@ -359,11 +352,11 @@ PIN_Config pinTable[] =
     IOID_21 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,      //dijital 2 giriþi
     IOID_22 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,      //dijital 3 giriþi
     IOID_23 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,      //dijital 4 giriþi
-    doLedPower | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-    doLedReceiving | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-    doLedData | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-    doLedError | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-    ext_control_pin | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    defLedPower | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    defLedReceiving | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    defLedData | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    defLedError | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    defExtControlPin | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
     PIN_TERMINATE
 };
 
@@ -387,11 +380,11 @@ void rxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
     if (status == EasyLink_Status_Success)
     {
         //Genel paketin içerisindeki kanal bilgisinin alýcý üzerindeki dipswitchle eþlesmesi durumu
-        if((rxPacket->payload[2] == 0xAA)&&(rxPacket->payload[3] == kanal_))
+        if((rxPacket->payload[2] == 0xAA)&&(rxPacket->payload[3] == uint18kanal))
         {
             //paketlerin deðiþkenlere doldurulma durumu
-            data_alinmadi=0;
-            frekans_atlama_sayaci=0;
+            uint32DataAlinamadi=0;
+            uint32frekansAtlamaSayaci=0;
             buton_ileri2=1&(rxPacket->payload[4]);
             buton_ileri1=2&(rxPacket->payload[4]);
             buton_f12_2=4&(rxPacket->payload[4]);
@@ -414,10 +407,10 @@ void rxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
             buton_kanca1=2&(rxPacket->payload[6]);
             buton_kanca2=4&(rxPacket->payload[6]);
 
-            loadcell_1_=(rxPacket->payload[7]);
-            dara_1_=(rxPacket->payload[8]);
-            loadcell_2_=(rxPacket->payload[9]);
-            dara_2_=(rxPacket->payload[10]);
+            uint16loadCell1=(rxPacket->payload[7]);
+            uint16loadCellDara1=(rxPacket->payload[8]);
+            uint16loadCell2=(rxPacket->payload[9]);
+            uint16loadCellDara2=(rxPacket->payload[10]);
 
             //butonlarýn senaryoya göre rölelere aktarýldýðý durumlar
             role_ileri=buton_ileri1;
@@ -508,21 +501,21 @@ void rxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
             //Loadcell ve Dara ayarlarý
 
             //1. Loadcell ve Dara ayarý
-            if(loadcell_1_)
+            if(uint16loadCell1)
             {
-                if(loadcell_1_==3)
+                if(uint16loadCell1==3)
                 {
-                    loadcell_1_=25;
+                    uint16loadCell1=25;
                 }
                 else
                 {
-                    loadcell_1_=loadcell_1_*10;
+                    uint16loadCell1=uint16loadCell1*10;
                 }
 
 
-                if(dara_1_>100)
+                if(uint16loadCellDara1>100)
                 {
-                    if(AN1>=(2570-(2570*(dara_1_-101)/(loadcell_1_*10))))
+                    if(uint16analog1>=(2570-(2570*(uint16loadCellDara1-101)/(uint16loadCell1*10))))
                     {
                         role_ileri=0;
                         role_geri=0;
@@ -540,7 +533,7 @@ void rxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
                 }
                 else
                 {
-                    if(AN1>=(2570+(2570*(101-dara_1_)/(loadcell_1_*10))))
+                    if(uint16analog1>=(2570+(2570*(101-uint16loadCellDara1)/(uint16loadCell1*10))))
                     {
                         role_ileri=0;
                         role_geri=0;
@@ -561,21 +554,21 @@ void rxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
 
 
             //2. Loadcell ve Dara ayarý
-            if(loadcell_2_)
+            if(uint16loadCell2)
             {
-                if(loadcell_2_==3)
+                if(uint16loadCell2==3)
                 {
-                    loadcell_2_=25;
+                    uint16loadCell2=25;
                 }
                 else
                 {
-                    loadcell_2_=loadcell_2_*10;
+                    uint16loadCell2=uint16loadCell2*10;
                 }
 
 
-                if(dara_2_>100)
+                if(uint16loadCellDara2>100)
                 {
-                    if(AN2>=(2570-(2570*(dara_2_-101)/(loadcell_2_*10))))
+                    if(uint16analog2>=(2570-(2570*(uint16loadCellDara2-101)/(uint16loadCell2*10))))
                     {
                         role_ileri=0;
                         role_geri=0;
@@ -593,7 +586,7 @@ void rxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
                 }
                 else
                 {
-                    if(AN2>=(2570+(2570*(101-dara_2_)/(loadcell_2_*10))))
+                    if(uint16analog2>=(2570+(2570*(101-uint16loadCellDara2)/(uint16loadCell2*10))))
                     {
                         role_ileri=0;
                         role_geri=0;
@@ -613,19 +606,19 @@ void rxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
 
 
             //1. digital giriþacil stop rölesini aktif ediyor
-            if(Dig1==1)
+            if(uint18digitalInput1==1)
             {
                 role_acil=1;
             }
 
             //1. Analog giriþ deðeri 10V olduðu zaman, yukarý rölesi sýfýrlýyor
-            if(AN1>2570)
+            if(uint16analog1>2570)
             {
                 role_yukari=0;
             }
 
             //2. Analog giriþ deðeri 10V olduðu zaman, yukarý rölesi sýfýrlýyor
-            if(AN2>2570)
+            if(uint16analog2>2570)
             {
                 role_yukari=0;
             }
@@ -643,17 +636,17 @@ void rxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
 
             if((role_ileri!=0) || (role_geri!=0) || (role_sol!=0) || (role_sag!=0) || (role_yukari!=0) || (role_asagi!=0))
             {
-                PIN_setOutputValue(ledPinHandle, doLedData,1);   //Data ledi açýlýyor
+                PIN_setOutputValue(ledPinHandle, defLedData,1);   //Data ledi açýlýyor
             }
             else
             {
-                PIN_setOutputValue(ledPinHandle, doLedData,0);   //Data ledi kapanýyor
+                PIN_setOutputValue(ledPinHandle, defLedData,0);   //Data ledi kapanýyor
             }
 
 
             //Rx led toggle
             PIN_setOutputValue(pinHandle, Board_LED2,!PIN_getOutputValue(Board_LED2));
-            PIN_setOutputValue(ledPinHandle, doLedReceiving,!PIN_getOutputValue(doLedReceiving));     //Receiving ledi toggle
+            PIN_setOutputValue(ledPinHandle, defLedReceiving,!PIN_getOutputValue(defLedReceiving));     //Receiving ledi toggle
 
             //Tx taskýný aktif ediyor
             Semaphore_post(txDoneSem);
@@ -662,7 +655,7 @@ void rxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
     //data alýnmadýðý durum
     else
     {
-        data_alinmadi++;
+        uint32DataAlinamadi++;
     }
 }
 #endif
@@ -673,7 +666,7 @@ static void rfEasyLinkRxFnx(UArg arg0, UArg arg1)
     i2ctxBuff[0] = 0x00;    //eeproma yazýlacak deðer
     CPUdelay(1000000);
 
-    if(transferDone)        //i2c transferinin tamamlanma durumunun kontrolü
+    if(i2cTransferDone)        //i2c transferinin tamamlanma durumunun kontrolü
     {
         I2C_close(i2c); //i2c kapatýlýyor
         i2c = I2C_open(Board_I2C0, &i2cParams); //i2c açýlýyor
@@ -689,13 +682,13 @@ static void rfEasyLinkRxFnx(UArg arg0, UArg arg1)
 
     //FREKANS KAYDET
     //seçme butonu basýlý olduðu durumda, dipswitchlerden okunan deðeri eeprom üzerine kaydetme durumu
-    if(secme_buton==0)
+    if(uint18secmeButon==0)
     {
         i2ctxBuff[0] = 0x01;
-        i2ctxBuff[1] = frekans_;
+        i2ctxBuff[1] = uint18frekans;
         tekrar_frekans:
         CPUdelay(1000000);
-        if(transferDone)
+        if(i2cTransferDone)
         {
             I2C_close(i2c);
             i2c = I2C_open(Board_I2C0, &i2cParams);
@@ -708,7 +701,7 @@ static void rfEasyLinkRxFnx(UArg arg0, UArg arg1)
         }
 
         CPUdelay(1000000);
-        if(transferDone)
+        if(i2cTransferDone)
         {
             I2C_close(i2c);
             i2c = I2C_open(Board_I2C0, &i2cParams);
@@ -720,7 +713,7 @@ static void rfEasyLinkRxFnx(UArg arg0, UArg arg1)
             I2C_transfer(i2c, &i2cTransaction3);
         }
 
-        if(i2crxBuff[0]!=frekans_)
+        if(i2crxBuff[0]!=uint18frekans)
         {
             goto tekrar_frekans;
         }
@@ -730,7 +723,7 @@ static void rfEasyLinkRxFnx(UArg arg0, UArg arg1)
     i2ctxBuff[0] = 0x01;
     CPUdelay(1000000);
 
-    if(transferDone)
+    if(i2cTransferDone)
     {
         I2C_close(i2c);
         i2c = I2C_open(Board_I2C0, &i2cParams);
@@ -743,7 +736,7 @@ static void rfEasyLinkRxFnx(UArg arg0, UArg arg1)
     }
 
     CPUdelay(1000000);
-    frekans_okunan=i2crxBuff[0];
+    uint18okunanFrekans=i2crxBuff[0];
 
 #ifndef RFEASYLINKRX_ASYNC
     EasyLink_RxPacket rxPacket = {0};
@@ -752,15 +745,15 @@ static void rfEasyLinkRxFnx(UArg arg0, UArg arg1)
 #ifdef RFEASYLINKRX_ASYNC
 #endif //RFEASYLINKRX_ASYNC
     //RF_init, frekans ve rf_power set etme bölümü
-    EasyLink_init(Tx_Rx_init);
-    EasyLink_setFrequency((frekans_okunan*Tx_Rx_frekans_kademesi)+Tx_Rx_baslangýc_frekansi);
+    EasyLink_init(defRxTxInit);
+    EasyLink_setFrequency((uint18okunanFrekans*defRxTxFrekansKademesi)+defRxTxBaslangicFrekans);
 #ifdef freq_atlama
-    EasyLink_setFrequency((frekans_okunan*Tx_Rx_frekans_kademesi*4)+Tx_Rx_baslangýc_frekansi);
+    EasyLink_setFrequency((uint18okunanFrekans*defRxTxFrekansKademesi*4)+defRxTxBaslangicFrekans);
 #endif
 #ifdef freq_atlama2
-    EasyLink_setFrequency((frekans_okunan*Tx_Rx_frekans_kademesi)+Tx_Rx_baslangýc_frekansi);
+    EasyLink_setFrequency((uint18okunanFrekans*defRxTxFrekansKademesi)+defRxTxBaslangicFrekans);
 #endif
-    EasyLink_setRfPower(Tx_Rx_power_db);
+    EasyLink_setRfPower(defRxTxPowerDb);
 
 #ifdef RFEASYLINKRX_ADDR_FILTER
     uint8_t addrFilter = 0xaa;
@@ -771,82 +764,80 @@ static void rfEasyLinkRxFnx(UArg arg0, UArg arg1)
     {
 #ifdef RFEASYLINKRX_ASYNC
 
-        data_alinmadi++;
-        frekans_atlama_sayaci++;
-        role_sayac++;
+        uint32DataAlinamadi++;
+        uint32frekansAtlamaSayaci++;
+        uint32RoleSayac++;
         //////////////
 
-        PIN_setOutputValue(ledPinHandle, ext_control_pin, !PIN_getOutputValue(ext_control_pin));
+        PIN_setOutputValue(ledPinHandle, defExtControlPin, !PIN_getOutputValue(defExtControlPin));
         ///////////////
-        res1 = ADC_convert(adc1, &adcValue1);
-        if (res1 == ADC_STATUS_SUCCESS)
+        handleADC1 = ADC_convert(handleAdc1, &adcValue1);
+        if (handleADC1 == ADC_STATUS_SUCCESS)
         {
-            AN1=adcValue1;
+            uint16analog1=adcValue1;
         }
 
-        res2 = ADC_convert(adc2, &adcValue2);
-        if (res2 == ADC_STATUS_SUCCESS)
+        handleADC2 = ADC_convert(handleAdc2, &adcValue2);
+        if (handleADC2 == ADC_STATUS_SUCCESS)
         {
-            AN2=adcValue2;
+            uint16analog2=adcValue2;
         }
 
-        Dig1=!PIN_getInputValue(IOID_20);
+        uint18digitalInput1=!PIN_getInputValue(IOID_20);
 
         //1. digital giriþacil stop rölesini aktif ediyor
-        if(Dig1==1)
+        if(uint18digitalInput1==1)
         {
             role_acil=1;
         }
 
         //1. Analog giriþ deðeri 10V olduðu zaman, yukarý rölesi sýfýrlýyor
-        if(AN1>2570)
+        if(uint16analog1>2570)
         {
             role_yukari=0;
         }
 
         //2. Analog giriþ deðeri 10V olduðu zaman, yukarý rölesi sýfýrlýyor
-        if(AN2>2570)
+        if(uint16analog2>2570)
         {
             role_yukari=0;
         }
 
         //alýcý kumanda verici kumanda ile belli bir süre haberleþmeme durumunda yapýlacaklar
         //tüm röleleri kapatma durumu
-        if(data_alinmadi>=data_alinmadi_zamani)
+        if(uint32DataAlinamadi>=defDataAlinamadiZamani)
         {           //baðlantý hatasý durumu tüm röleleri sýfýrla, acili aç
             role_ileri=0,role_geri=0,role_ig2=0,role_fonk1_1=0,role_fonk1_2=0,role_fonk2_1=0,role_fonk2_2=0;
             role_ss2=0,role_sol=0,role_sag=0,role_ya2=0,role_asagi=0,role_yukari=0;
             //role_acil=1;
             rolecikis();
             //PIN_setOutputValue(ledPinHandle, IOID_11,0); //emniyet rölesi
-            PIN_setOutputValue(ledPinHandle, doLedReceiving,0);  //Receiving ledi kapanýyor
-            PIN_setOutputValue(ledPinHandle, doLedData,0);   //Data ledi kapanýyor
+            PIN_setOutputValue(ledPinHandle, defLedReceiving,0);  //Receiving ledi kapanýyor
+            PIN_setOutputValue(ledPinHandle, defLedData,0);   //Data ledi kapanýyor
         }
 
 
-        if(frekans_atlama_sayaci>=1825)  //4280 170ms    3450 135ms   7000 278ms  2140 85ms   2568 102ms   856 34ms   1825 72.5ms
+        if(uint32frekansAtlamaSayaci>=1825)  //4280 170ms    3450 135ms   7000 278ms  2140 85ms   2568 102ms   856 34ms   1825 72.5ms
         {
             //role_acil=!role_acil;
             //rolecikis();
 
 
-            frekans_atlama_sayaci=0;
-            //gelen_paket_sayisi++;
-            //gelen_paket_sayisi=gelen_paket_sayisi+2;
-            gelen_paket_sayisi=gelen_paket_sayisi+3;
+            uint32frekansAtlamaSayaci=0;
+            uint18gelenPaketSayisi=uint18gelenPaketSayisi+3;
 
 #ifdef freq_atlama
-            EasyLink_setFrequency(((gelen_paket_sayisi%4)*Tx_Rx_frekans_kademesi)+(frekans_okunan*Tx_Rx_frekans_kademesi*4)+Tx_Rx_baslangýc_frekansi);
+            EasyLink_setFrequency(((uint18gelenPaketSayisi%4)*defRxTxFrekansKademesi)+(uint18okunanFrekans*defRxTxFrekansKademesi*4)+defRxTxBaslangicFrekans);
 #endif
 #ifdef freq_atlama2
-            EasyLink_setFrequency(((gelen_paket_sayisi%4)*35*Tx_Rx_frekans_kademesi)+(frekans_okunan*Tx_Rx_frekans_kademesi)+Tx_Rx_baslangýc_frekansi);
+            EasyLink_setFrequency(((uint18gelenPaketSayisi%4)*35*defRxTxFrekansKademesi)+(uint18okunanFrekans*defRxTxFrekansKademesi)+defRxTxBaslangicFrekans);
 #endif
         }
 
         //watchdog resetleme durumu
         watchdog_kickWatchdog();
 
-        PIN_setOutputValue(ledPinHandle, ext_control_pin, !PIN_getOutputValue(ext_control_pin));
+        PIN_setOutputValue(ledPinHandle, defExtControlPin, !PIN_getOutputValue(defExtControlPin));
         //Alýcýnýn Rx moda geçmesi
         EasyLink_receiveAsync(rxDoneCb, 0);
 
@@ -901,36 +892,36 @@ int main(void)
     I2C_transfer(i2c, &i2cTransaction2);
 
 
-    ADC_Params_init(&ADCparams1);                               //ADC kanallarýnýn initi
-    adc1 = ADC_open(CC1350_LAUNCHXL_ADC4, &ADCparams1);
-    ADC_Params_init(&ADCparams2);
-    adc2 = ADC_open(CC1350_LAUNCHXL_ADC5, &ADCparams2);
+    ADC_Params_init(&paramsADC1);                               //ADC kanallarýnýn initi
+    handleAdc1 = ADC_open(CC1350_LAUNCHXL_ADC4, &paramsADC1);
+    ADC_Params_init(&paramsADC2);
+    handleAdc2 = ADC_open(CC1350_LAUNCHXL_ADC5, &paramsADC2);
 
     rolecikis();    //ilk durumda röle durumlarý sýfýrlanýyor
     PIN_setOutputValue(ledPinHandle, IOID_1,0);     //tx ledi açýlýþta sýfýrlanýyor
     PIN_setOutputValue(ledPinHandle, Board_LED2,0); //rx ledi açýlýþta sýfýrlanýyor
     PIN_setOutputValue(ledPinHandle, IOID_11,1);    //emniyet rölesi açýlýyor
 
-    PIN_setOutputValue(ledPinHandle, doLedPower,1);  //Power Ledi açýlýyor
-    PIN_setOutputValue(ledPinHandle, doLedError,0);  //Error ledi kapanýyor
-    PIN_setOutputValue(ledPinHandle, doLedReceiving,0);  //Receiving ledi kapanýyor
-    PIN_setOutputValue(ledPinHandle, doLedData,0);   //Data ledi kapanýyor
-    PIN_setOutputValue(ledPinHandle, ext_control_pin, 0);
+    PIN_setOutputValue(ledPinHandle, defLedPower,1);  //Power Ledi açýlýyor
+    PIN_setOutputValue(ledPinHandle, defLedError,0);  //Error ledi kapanýyor
+    PIN_setOutputValue(ledPinHandle, defLedReceiving,0);  //Receiving ledi kapanýyor
+    PIN_setOutputValue(ledPinHandle, defLedData,0);   //Data ledi kapanýyor
+    PIN_setOutputValue(ledPinHandle, defExtControlPin, 0);
     //Seçme butonunun okunmasý
-    secme_buton=PIN_getInputValue(IOID_15);
+    uint18secmeButon=PIN_getInputValue(IOID_15);
     aliciread165(); //alýcý üzerindeki dipswicthlerin okunmasý
     aliciread165();
-    secme_buton=PIN_getInputValue(IOID_15);
+    uint18secmeButon=PIN_getInputValue(IOID_15);
 
     //seçme butonu basýlý deðilse, dipswitch üzerinden okunan deðer kanal deðeri olarak iþleniyor
-    if(secme_buton==1)
+    if(uint18secmeButon==1)
     {
-        kanal_=(128*buton1)+(64*buton2)+(32*buton3)+(16*buton4)+(8*buton5)+(4*buton6)+(2*buton7)+(1*buton8);
+        uint18kanal=(128*buton1)+(64*buton2)+(32*buton3)+(16*buton4)+(8*buton5)+(4*buton6)+(2*buton7)+(1*buton8);
     }
     //seçme butonu basýlý ise, dipswitch üzerinden okunan deðer frekans deðeri olarak iþleniyor
-    if(secme_buton==0)
+    if(uint18secmeButon==0)
     {
-        frekans_=(128*buton1)+(64*buton2)+(32*buton3)+(16*buton4)+(8*buton5)+(4*buton6)+(2*buton7)+(1*buton8);
+        uint18frekans=(128*buton1)+(64*buton2)+(32*buton3)+(16*buton4)+(8*buton5)+(4*buton6)+(2*buton7)+(1*buton8);
     }
 
     //watchdog init yapýlýyor
