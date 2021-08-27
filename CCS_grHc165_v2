@@ -1,0 +1,41 @@
+//Verici READ HC165
+
+#define defHcClockPin IOID_9
+#define defHcDataPin  IOID_8
+#define defHcLatchPin IOID_10
+
+PIN_Handle KumandaButonlarPinHandle;
+PIN_State KumandaButonlarPinState;
+
+PIN_Config KumandaButonlarPinTable[] =
+{
+    defHcClockPin  | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    defHcDataPin   | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,
+    defHcLatchPin  | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    PIN_TERMINATE
+};
+
+uint8_t temp = 0;
+bool di165Hc1,di165Hc2,di165Hc3,di165Hc4,di165Hc5,di165Hc6,di165Hc7,di165Hc8 =0;
+void aliciclock165(void)
+{
+     PIN_setOutputValue(KumandaButonlarPinHandle, defHcClockPin, 1);
+     _delay_cycles (1);
+     PIN_setOutputValue(KumandaButonlarPinHandle, defHcClockPin, 0);
+}
+
+void aliciread165()
+{
+     di165Hc1=PIN_getInputValue(defHcDataPin); aliciclock165();
+     di165Hc2=PIN_getInputValue(defHcDataPin); aliciclock165();
+     di165Hc3=PIN_getInputValue(defHcDataPin); aliciclock165();
+     di165Hc4=PIN_getInputValue(defHcDataPin); aliciclock165();
+     di165Hc5=PIN_getInputValue(defHcDataPin); aliciclock165();
+     di165Hc6=PIN_getInputValue(defHcDataPin); aliciclock165();
+     di165Hc7=PIN_getInputValue(defHcDataPin); aliciclock165();
+     di165Hc8=PIN_getInputValue(defHcDataPin); aliciclock165();
+
+     PIN_setOutputValue(KumandaButonlarPinHandle, defHcLatchPin, 0);
+     _delay_cycles (1);
+     PIN_setOutputValue(KumandaButonlarPinHandle, defHcLatchPin, 1);
+}
