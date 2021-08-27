@@ -16,7 +16,7 @@ PIN_Config KumandaButonlarPinTable[] =
 };
 
 uint8_t temp = 0;
-bool di165Hc1,di165Hc2,di165Hc3,di165Hc4,di165Hc5,di165Hc6,di165Hc7,di165Hc8 =0;
+bool di165Hc[8];
 void aliciclock165(void)
 {
      PIN_setOutputValue(KumandaButonlarPinHandle, defHcClockPin, 1);
@@ -26,14 +26,14 @@ void aliciclock165(void)
 
 void aliciread165()
 {
-     di165Hc1=PIN_getInputValue(defHcDataPin); aliciclock165();
-     di165Hc2=PIN_getInputValue(defHcDataPin); aliciclock165();
-     di165Hc3=PIN_getInputValue(defHcDataPin); aliciclock165();
-     di165Hc4=PIN_getInputValue(defHcDataPin); aliciclock165();
-     di165Hc5=PIN_getInputValue(defHcDataPin); aliciclock165();
-     di165Hc6=PIN_getInputValue(defHcDataPin); aliciclock165();
-     di165Hc7=PIN_getInputValue(defHcDataPin); aliciclock165();
-     di165Hc8=PIN_getInputValue(defHcDataPin); aliciclock165();
+    di165Hc[0]=PIN_getInputValue(defHcDataPin); aliciclock165();
+    di165Hc[1]=PIN_getInputValue(defHcDataPin); aliciclock165();
+    di165Hc[2]=PIN_getInputValue(defHcDataPin); aliciclock165();
+    di165Hc[3]=PIN_getInputValue(defHcDataPin); aliciclock165();
+    di165Hc[4]=PIN_getInputValue(defHcDataPin); aliciclock165();
+    di165Hc[5]=PIN_getInputValue(defHcDataPin); aliciclock165();
+    di165Hc[6]=PIN_getInputValue(defHcDataPin); aliciclock165();
+    di165Hc[7]=PIN_getInputValue(defHcDataPin); aliciclock165();
 
      PIN_setOutputValue(KumandaButonlarPinHandle, defHcLatchPin, 0);
      _delay_cycles (1);
