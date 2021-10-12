@@ -1,0 +1,5 @@
+Kart üzerindeki dizilimle aynı olarak ilk olarak J5 sonrasında J4=JTAG bacakları sıralandı soldan sağa
+
+J5                             J4=JTAG
+GND - VCC- RX   - TX           TCK - TMS - RST - TDI   - TDO   - YEDEK - VCC - GND
+ 0  -  0 - DIO2 - DIO3          0  - 0   -  0  - DIO17 - DIO16 -   0   -  0  -  0
