@@ -1,0 +1,42 @@
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada\logScada\bin\Debug\logScada.exe.config
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada\logScada\bin\Debug\logScada.exe
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada\logScada\bin\Debug\logScada.pdb
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada\logScada\obj\Debug\logScada.csprojAssemblyReference.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada\logScada\obj\Debug\logScada.Form1.resources
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada\logScada\obj\Debug\logScada.Properties.Resources.resources
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada\logScada\obj\Debug\logScada.csproj.GenerateResource.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada\logScada\obj\Debug\logScada.csproj.CoreCompileInputs.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada\logScada\obj\Debug\logScada.exe
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada\logScada\obj\Debug\logScada.pdb
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada_v\bin\Debug\logScada.exe.config
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada_v\bin\Debug\logScada.exe
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada_v\bin\Debug\logScada.pdb
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada_v\obj\Debug\logScada.csprojAssemblyReference.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada_v\obj\Debug\logScada.Form1.resources
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada_v\obj\Debug\logScada.Properties.Resources.resources
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada_v\obj\Debug\logScada.csproj.GenerateResource.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada_v\obj\Debug\logScada.csproj.CoreCompileInputs.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada_v\obj\Debug\logScada.exe
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\logScada_v\obj\Debug\logScada.pdb
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\log kayıt\logScada_v\bin\Debug\logScada.exe.config
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\log kayıt\logScada_v\bin\Debug\logScada.exe
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\log kayıt\logScada_v\bin\Debug\logScada.pdb
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.Form1.resources
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.Properties.Resources.resources
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.csproj.GenerateResource.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.csproj.CoreCompileInputs.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.exe
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.pdb
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.csproj.AssemblyReference.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_Isdemir_210101_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.FormEksenHesaplama.resources
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_210101_Isdemir_tovs\Yazılım\log kayıt\logScada_v\bin\Debug\logScada.exe.config
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_210101_Isdemir_tovs\Yazılım\log kayıt\logScada_v\bin\Debug\logScada.exe
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_210101_Isdemir_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.csproj.AssemblyReference.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_210101_Isdemir_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.Form1.resources
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_210101_Isdemir_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.FormEksenHesaplama.resources
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_210101_Isdemir_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.Properties.Resources.resources
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_210101_Isdemir_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.csproj.GenerateResource.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_210101_Isdemir_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.csproj.CoreCompileInputs.cache
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_210101_Isdemir_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.exe
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_210101_Isdemir_tovs\Yazılım\log kayıt\logScada_v\obj\Debug\logScada.pdb
+C:\Users\lutfi\OneDrive - 75217769ARLENTUS KONTROL ELEKTRONİK ELEKTR.BİLG\projeler\PR_210101_Isdemir_tovs\Yazılım\log kayıt\logScada_v\bin\Debug\logScada.pdb
