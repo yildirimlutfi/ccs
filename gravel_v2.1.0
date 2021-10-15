@@ -959,7 +959,6 @@ void *mainThread(void *arg0)
         iCount++;
     }
 }
-ta
 
 
 int main(void)
