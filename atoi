@@ -1,6 +1,7 @@
 //fonksiyonun duzgun calismasi icin
 //alinan string'in karakter sayisi 
 //icindeki sayi hanesinden 1 fazla olmasi gerekmektedir
+//örn. str[6]="12345";
 int myAtoi(char* str)
 {
     // Initialize result
