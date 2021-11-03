@@ -1,0 +1,9 @@
+            if((iButonBilgileri & uartAlinanDatalar[41]) == 1)
+                role_ileri=1;
+            else
+                role_ileri=0;
+
+            if((iButonBilgileri & uartAlinanDatalar[42] ) == 2)
+                role_ig2=1;
+            else
+                role_ig2=0;
