@@ -1,0 +1,1049 @@
+
+
+
+
+    //======== rfEasyLinkRx.c ========
+
+    #define Tx_Rx_baslangic_frekansi 863000000      //863000000     433000000
+    //Tx_Rx_frekans_kademesi örnegin 50000 seçili oldugu zaman, frekans kanal seçimi sirasinda frekans farki 2mhz olmaktadir
+    #define Tx_Rx_frekans_kademesi 50000
+    //Tx_Rx_power_db örnegin 14 olarak ayarlandigi zaman, Tx power 14 olarak ayarlanmaktadir.
+    //#define Tx_Rx_power_db 14
+    //Tx_Rx_init 3 farkli sekilde ayarlanmaktadir, bunlar: EasyLink_Phy_50kbps2gfsk    EasyLink_Phy_625bpsLrm    EasyLink_Phy_Custom
+    //Bunlardan EasyLink_Phy_Custom seçildigi zaman, proje içerisindeki smartrf_settings klasöründeki
+    //smartrf_settings.c dosyasindaki ayarlari uygulanmaktadir.
+    #define Tx_Rx_init EasyLink_Phy_Custom  //Tx_Rx init
+    //EasyLink_Phy_50kbps2gfsk    EasyLink_Phy_625bpsLrm    EasyLink_Phy_Custom
+    //#include "smartrf_settings.c"
+
+
+    //Watchdog include
+    #include <ti/devices/cc13x0/inc/hw_ints.h>
+    #include <ti/devices/cc13x0/inc/hw_memmap.h>
+    #include <ti/drivers/watchdog/WatchdogCC26XX.c>
+    #include <ti/drivers/watchdog/WatchdogCC26XX.h>
+    #include <ti/drivers/power/PowerCC26XX.h>
+
+    #include <stdint.h>
+    #include <stdbool.h>
+    #include <ti/drivers/Watchdog.c>
+    #include <ti/sysbios/family/arm/m3/Hwi.h>
+    #include <ti/drivers/Watchdog.h>
+    #include <ti/devices/cc13x0/driverlib/watchdog.c>
+
+    /* XDCtools Header files */
+    #include <xdc/std.h>
+    #include <xdc/runtime/System.h>
+    #include <xdc/runtime/Error.h>
+
+    /* BIOS Header files */
+    #include <ti/sysbios/BIOS.h>
+    #include <ti/sysbios/knl/Task.h>
+    #include <ti/sysbios/knl/Semaphore.h>
+    #include <ti/sysbios/knl/Clock.h>
+    #include <stdlib.h>
+    #include <stdio.h>
+
+    /* TI-RTOS Header files */
+    #include <ti/drivers/PIN.h>
+
+    /* Board Header files */
+    #include "Board.h"
+
+    /* EasyLink API Header files */
+    #include "easylink/EasyLink.h"
+
+    #include <ti/sysbios/knl/Swi.h>
+    #include <ti/drivers/Power.h>
+    #include <ti/drivers/power/PowerCC26XX.h>
+    #include <ti/devices/cc13x0/inc/hw_prcm.h>
+    #include <ti/devices/cc13x0/driverlib/sys_ctrl.h>
+    #include <ti/drivers/pin/PINCC26XX.h>
+
+    #include <ti/drivers/ADC.h>
+    #include <ti/drivers/I2C.h>
+    bool i2cAcik=false;
+
+    //giris çikis fonksiyonlari include
+    #include "HC165.h"
+    #include "HC595.h"
+
+    /* Driver Header files */
+    #include <ti/drivers/GPIO.h>
+    #include <ti/drivers/UART.h>
+    #define  defUartAlinanAdet 85
+    #define defUartAlinanUzunluk 7
+    #define defUartCharSize defUartAlinanAdet*defUartAlinanUzunluk
+    #define  defEpromYazmaParcaAdedi 1
+    #define defEpromSayfa1YazmaAdedi 62
+    #define defEpromSayfa2YazmaAdedi 14
+    char    input[defUartCharSize-defUartAlinanAdet];
+
+
+
+    char cTempDonusum[defUartAlinanUzunluk],cTempDonusum2[defUartAlinanUzunluk];
+    char *combi3;
+    uint32_t uartAlinanDatalar[defUartAlinanAdet+1];
+    uint32_t tempEprom;
+
+
+    /* POSIX Header files */
+    #include <pthread.h>
+    extern void *uartThread(void *arg0);
+    /* Stack size in bytes */
+    #define THREADSTACKSIZE    1024
+
+
+    /*Timer Header Files */
+    #include <ti/sysbios/knl/Clock.h>
+
+    /*Defination for taskTimer */
+    Clock_Params clockParamsTimer;
+    Clock_Handle handleTaskTimer;
+    Error_Block ebTaskTimer;
+
+    struct TON {  int PT;  int ET;  bool IN;  bool Q;   };//role gecikme zamani icin icin timer yapisi olusturuldu
+
+    struct TON roleCekmeGecikme[16];//ton yapisi ile cekme gecikme zamani degiskenleri olusturuldu
+    struct TON roleBirakmaGecikme[16];//ton yapisi ile birakma gecikme zamani degiskenleri olusturuldu
+
+    #define Led_Power           IOID_19
+    #define Led_Receiving       IOID_12
+    #define Led_Data            IOID_13
+    #define Led_Error           IOID_14
+
+    #define ext_control_pin     IOID_30
+
+    #define data_alinmadi_zamani    20000       //baglanti hatasi durumu tüm röleleri sifirla, acili aç //eski 500000
+
+    #define Lo(param) ((char *)&param)[0]
+    #define Hi(param) ((char *)&param)[1]
+
+    /* Undefine to remove address filter and async mode */
+    #define RFEASYLINKRX_ASYNC
+    #define RFEASYLINKRX_ADDR_FILTER
+
+    #define RFEASYLINKEX_TASK_STACK_SIZE 1024
+    #define RFEASYLINKEX_TASK_PRIORITY   2      //Rx task priority
+
+    /* Pin driver handle */
+    static PIN_Handle ledPinHandle;
+    static PIN_State ledPinState;
+
+    #define ADCTASKSTACKSIZE     (768)
+    Task_Struct ADCtaskStruct;
+    Char ADCtaskStack[ADCTASKSTACKSIZE];
+    uint16_t adcValue1,adcValue2;
+    uint16_t AN1=0,AN2=0,AN3=0,AN1_giden=0,AN2_giden=0;
+    ADC_Handle   adc1,adc2;
+    ADC_Params   ADCparams1,ADCparams2;
+    int_fast16_t res1,res2;
+    uint8_t Dig1=0,Dig2=0,Dig3=0,Dig4=0;
+
+    I2C_Handle      i2c;
+    I2C_Params      i2cParams;
+    I2C_Transaction i2cTransaction1;
+    I2C_Transaction i2cTransaction2;
+    I2C_Transaction i2cTransaction3;
+    uint16_t         i2ctxBuffer[defUartAlinanAdet*4];
+    uint16_t         i2crxBuffer[defUartAlinanAdet*4];
+    uint8_t         i2cTempWrite[defEpromYazmaParcaAdedi+1];
+    uint8_t         i2cTempRead[defEpromYazmaParcaAdedi];
+    uint16_t i2cDenemeSayisi=0;
+
+    bool transferDone = false;
+    uint32_t         iFrekans=0,iKanal=0,secme_buton=1;
+    uint32_t Tx_Rx_power_db =14;
+    uint8_t buton_ileri2=0,buton_ileri1=0,buton_f12_2=0,buton_f12_1=0,buton_f34_2=0,buton_f34_1=0,buton_geri2=0,buton_geri1=0;
+    uint8_t buton_yukari1=0,buton_yukari2=0,buton_sol2=0,buton_sol1=0,buton_sag2=0,buton_sag1=0,buton_asagi1=0,buton_asagi2=0;
+    uint8_t buton_acil_stop=0,buton_kanca1=0,buton_kanca2=0;
+    uint32_t data_alinmadi=0;
+    uint16_t loadcell_1_=0, dara_1_=0, loadcell_2_=0, dara_2_=0;
+    uint8_t gelen_paket_sayisi=0;
+    uint32_t frekans_atlama_sayaci=0;
+    uint32_t iButonBilgileri=0,iTempButon=0,iRoleBilgileri=0;
+    uint32_t i=0,j=0,k=0;
+    uint8_t tempRole[16];
+    bool roleKademeGecikmesi[16];
+
+    Watchdog_Handle watchdogHandle;
+    extern uint32_t WatchdogCC26XX_convertMsToTicks(Watchdog_Handle watchdogHandle,uint32_t milliseconds);
+    #define WATCHDOG_COUNT 1
+    #define WATCHDOG_TIMEOUT_MS     2000        //watchdog'un kaç milisaniye olacagi durumu  1000
+    WatchdogCC26XX_Object watchdog_objects[WATCHDOG_COUNT];
+
+    const WatchdogCC26XX_HWAttrs watchdog_hwAttributes[WATCHDOG_COUNT] = {
+        {
+            .baseAddr = WDT_BASE,
+            .reloadValue = 10000
+       }
+    };
+
+    //watchdog init fonksiyonu
+    void watchdog_init()
+    {
+        Watchdog_init();
+        Watchdog_Params params;
+        Watchdog_Params_init(&params);
+        watchdogHandle = Watchdog_open(0, &params);
+        Watchdog_setReload(watchdogHandle, WatchdogCC26XX_convertMsToTicks(watchdogHandle,WATCHDOG_TIMEOUT_MS));
+        /* Avoid standby to keep the watchdog running */
+        Power_setConstraint(PowerCC26XX_SB_DISALLOW);
+    }
+
+    //watchdog'un kaç milisaniye olacagini ayarlayan fonksiyon
+    void watchdog_kickWatchdog()
+    {
+        Watchdog_setReload(watchdogHandle, WatchdogCC26XX_convertMsToTicks(watchdogHandle,WATCHDOG_TIMEOUT_MS));
+    }
+
+    //TX TASK
+    /* Undefine to not use async mode */
+    #define RFEASYLINKTX_ASYNC
+
+    #define RFEASYLINKTX_TASK_STACK_SIZE    1024
+    #define RFEASYLINKTX_TASK_PRIORITY      3       //Tx task priority
+    #define RFEASYLINKTX_BURST_SIZE         10
+    #define RFEASYLINKTXPAYLOAD_LENGTH      15      //Tx packet length
+    Task_Struct txTask;    /* not static so you can see in ROV */
+    static Task_Params txTaskParams;
+    static uint8_t txTaskStack[RFEASYLINKTX_TASK_STACK_SIZE];
+    static uint16_t seqNumber;
+    #ifdef RFEASYLINKTX_ASYNC
+    static Semaphore_Handle txDoneSem;
+    #endif //RFEASYLINKTX_ASYNC
+
+
+
+    //I2C'nin transfer isleminin tamamlanma sonucu gösteren fonksiyon
+    static void transferCallback(I2C_Handle handle, I2C_Transaction *transac, bool result)
+    {
+        // Set length bytes
+        if (result) {
+            transferDone = true;
+        } else {
+            // Transaction failed, act accordingly...
+            transferDone = false;
+        }
+    }
+
+    #ifdef RFEASYLINKTX_ASYNC
+    void txDoneCb(EasyLink_Status status)
+    {
+        //Tx paketi gönderildikten sonra yapilacaklarin durumu
+        if (status == EasyLink_Status_Success)
+        {
+            /* Toggle LED1 to indicate TX */
+            PIN_setOutputValue(ledPinHandle, IOID_1,!PIN_getOutputValue(IOID_1));
+            gelen_paket_sayisi++;
+        }
+        else
+        {
+
+        }
+    }
+    #endif //RFEASYLINKTX_ASYNC
+
+    static void rfEasyLinkTxFnx(UArg arg0, UArg arg1)
+    {
+    #ifdef RFEASYLINKTX_ASYNC
+        /* Create a semaphore for Async */
+        //semaphorelar olusturuluyor
+        Semaphore_Params params;
+        Error_Block eb;
+
+        /* Init params */
+        params.mode = Semaphore_Mode_BINARY;
+        Semaphore_Params_init(&params);
+        Error_init(&eb);
+
+        /* Create semaphore instance */
+        txDoneSem = Semaphore_create(0, &params, &eb);
+    #endif //TX_ASYNC
+
+
+
+
+
+        while(1)
+        {
+            PIN_setOutputValue(ledPinHandle, ext_control_pin, !PIN_getOutputValue(ext_control_pin));
+            PIN_setOutputValue(ledPinHandle, ext_control_pin, !PIN_getOutputValue(ext_control_pin));
+            //Analog ve dijital girisleri okuma bölümü
+            res1 = ADC_convert(adc1, &adcValue1);
+            if (res1 == ADC_STATUS_SUCCESS)
+            {
+                AN1=adcValue1;
+            }
+            res2 = ADC_convert(adc2, &adcValue2);
+            if (res2 == ADC_STATUS_SUCCESS)
+            {
+                AN2=adcValue2;
+            }
+
+            Dig1=!PIN_getInputValue(IOID_20);
+            Dig2=!PIN_getInputValue(IOID_21);
+            Dig3=!PIN_getInputValue(IOID_22);
+            Dig4=!PIN_getInputValue(IOID_23);
+
+            EasyLink_TxPacket txPacket =  { {0}, 0, 0, {0} };
+
+            /* Create packet with incrementing sequence number and random payload */
+            //Tx paketinin doldurulma durumu
+            txPacket.payload[0] = (uint8_t)(seqNumber >> 8);
+            txPacket.payload[1] = (uint8_t)(seqNumber++);
+            txPacket.payload[2] = 0xBB;
+            txPacket.payload[3] = iKanal;
+            txPacket.payload[4] = Lo(AN1);
+            txPacket.payload[5] = Hi(AN1);
+            txPacket.payload[6] = Lo(AN2);
+            txPacket.payload[7] = Hi(AN2);
+            txPacket.payload[8] = Lo(AN3);
+            txPacket.payload[9] = Hi(AN3);
+            txPacket.payload[10]= doRole595Hc[8];//kanca 1 role bilgisi
+            txPacket.payload[11]= doRole595Hc[9];//kanca 2 role bilgisi
+            txPacket.payload[12]= (1*Dig1)+(2*Dig2)+(4*Dig3)+(8*Dig4);
+
+            uint8_t i;
+            for (i = 13; i < RFEASYLINKTXPAYLOAD_LENGTH; i++)
+            {
+                txPacket.payload[i] = rand();
+            }
+
+            txPacket.len = RFEASYLINKTXPAYLOAD_LENGTH;
+            txPacket.dstAddr[0] = 0xaa;
+            txPacket.absTime = 0;
+
+    #ifdef RFEASYLINKTX_ASYNC
+            //Tx Transmit Data
+            EasyLink_transmitAsync(&txPacket, txDoneCb);
+            //data gönderildikten sonra Tx taski beklemeye geçiriliyor
+            Semaphore_pend(txDoneSem, BIOS_WAIT_FOREVER);
+
+    #endif //RFEASYLINKTX_ASYNC
+        }
+    }
+
+    void txTask_init(PIN_Handle inPinHandle)
+    {
+        ledPinHandle = inPinHandle;
+        Task_Params_init(&txTaskParams);
+        txTaskParams.stackSize = RFEASYLINKTX_TASK_STACK_SIZE;
+        txTaskParams.priority = RFEASYLINKTX_TASK_PRIORITY;
+        txTaskParams.stack = &txTaskStack;
+        txTaskParams.arg0 = (UInt)1000000;
+        Task_construct(&txTask, rfEasyLinkTxFnx, &txTaskParams, NULL);
+    }
+
+    PIN_Config pinTable[] =
+    {
+        Board_LED1 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+        Board_LED2 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX, //Rx Ledi
+        IOID_18 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,
+        IOID_15 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,      //seçme butonu
+        IOID_1 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,     //Tx Ledi
+        IOID_11| PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,     //emniyet rölesi
+        IOID_20 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,      //dijital 1 girisi
+        IOID_21 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,      //dijital 2 girisi
+        IOID_22 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,      //dijital 3 girisi
+        IOID_23 | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,      //dijital 4 girisi
+        Led_Power | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+        Led_Receiving | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+        Led_Data | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+        Led_Error | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+        ext_control_pin | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+        PIN_TERMINATE
+    };
+
+    /***** Variable declarations *****/
+    static Task_Params rxTaskParams;
+    Task_Struct rxTask;    /* not static so you can see in ROV */
+    static uint8_t rxTaskStack[RFEASYLINKEX_TASK_STACK_SIZE];
+
+    /* The RX Output struct contains statistics about the RX operation of the radio */
+    PIN_Handle pinHandle;
+
+    void roleCalismaFnx()//rolelerin calisma senaryosunun oldugu fonksiyon
+    {
+        uint8_t i;
+        uint8_t x=1;
+        for (i = 0; i < 16; i++)
+        {
+             if ((uartAlinanDatalar[37] & x ) == x)//veya sartlari kontrol edildi
+                {
+                    if((iButonBilgileri & uartAlinanDatalar[i+38]) > 0)//roleye atanan buton basildi ise timer inputunu true yap
+                        roleCekmeGecikme[i].IN=true;
+                    else
+                        roleCekmeGecikme[i].IN=false;
+
+                    if(roleBirakmaGecikme[i].Q)//timer cikis verdi ise roleyi cektir
+                        doRole595Hc[i]=1;
+                    else
+                        doRole595Hc[i]=0;
+                }
+                else//ve sartlari kontrol edildi
+                {
+                    if((iButonBilgileri & uartAlinanDatalar[i+38]) == uartAlinanDatalar[i+38] && uartAlinanDatalar[i+38] != 0 )
+                        roleCekmeGecikme[i].IN=true;
+                    else
+                        roleCekmeGecikme[i].IN=false;
+
+                    if(roleBirakmaGecikme[i].Q )
+                        doRole595Hc[i]=1;
+                    else
+                        doRole595Hc[i]=0;
+                }
+
+            x=x<<1;
+            if(x>=32768)
+                x=1;
+        }
+
+        iRoleBilgileri=0;
+        int z;
+        for (z = 15; z >= 0; z--)//role kisitlamasi icin role bilgisi tek degiskende toplandi
+        {
+            iRoleBilgileri=iRoleBilgileri<<1;//dole bilgilerini tek degiskende toplamak icin 1 bit kaydirma yapildi
+            iRoleBilgileri=iRoleBilgileri+doRole595Hc[z];//role bilgileri toplandş
+            tempRole[z]=doRole595Hc[z];//role bilgisi gecici degiskene atandi
+        }
+
+//        uartAlinanDatalar[54]=32770;
+//        uartAlinanDatalar[55]=16389;
+//        uartAlinanDatalar[56]=8202;
+//        uartAlinanDatalar[57]=4116;
+//        uartAlinanDatalar[58]=2088;
+//        uartAlinanDatalar[59]=1104;
+//        uartAlinanDatalar[60]=672;
+//        uartAlinanDatalar[61]=320;
+//        uartAlinanDatalar[62]=640;
+//        uartAlinanDatalar[63]=1344;
+//        uartAlinanDatalar[64]=2592;
+//        uartAlinanDatalar[65]=5136;
+//        uartAlinanDatalar[66]=10248;
+//        uartAlinanDatalar[67]=20484;
+//        uartAlinanDatalar[68]=40962;
+//        uartAlinanDatalar[69]=16385;
+
+        uint32_t w;
+        for (i = 0; i < 16; i++)//role kisitlamasi icin donduruldu
+        {
+            if (doRole595Hc[i] == 1 && uartAlinanDatalar[i+54] > 0)//role cekiyormu ve kisitlamasi varmi
+            {
+                w=1;
+                for(j = 0; j < 16; j++)
+                {
+                    if (((uartAlinanDatalar[i+54]&iRoleBilgileri)&w))//cektirilecek rolenin kisitlamasi varmi diye bakildi
+                    {
+                        tempRole[i]=0;
+                        tempRole[j]=0;
+                    }
+                    w=w<<1;
+                }
+            }
+        }
+        for(i = 0; i < 16; i++)
+        {
+            if(tempRole[i]==0)
+            doRole595Hc[i]=tempRole[i];
+        }
+        rolecikis();
+
+
+
+    }
+
+
+    /***** Function definitions *****/
+    #ifdef RFEASYLINKRX_ASYNC
+    void rxDoneCb(EasyLink_RxPacket * rxPacket, EasyLink_Status status)
+    {
+
+
+        //Vericiden gelen paketin basarili gelmesi durumu
+        if (status == EasyLink_Status_Success)
+        {
+            //Genel paketin içerisindeki kanal bilgisinin alici üzerindeki dipswitchle eslesmesi durumu
+            if((rxPacket->payload[2] == 0xAA)&&(rxPacket->payload[3] == iKanal))
+            {
+                //paketlerin degiskenlere doldurulma durumu
+                data_alinmadi=0;
+                frekans_atlama_sayaci=0;
+                buton_ileri2=1&(rxPacket->payload[4]);
+                buton_ileri1=2&(rxPacket->payload[4]);
+                buton_f12_2=4&(rxPacket->payload[4]);
+                buton_f12_1=8&(rxPacket->payload[4]);
+                buton_f34_2=16&(rxPacket->payload[4]);
+                buton_f34_1=32&(rxPacket->payload[4]);
+                buton_geri2=64&(rxPacket->payload[4]);
+                buton_geri1=128&(rxPacket->payload[4]);
+
+                buton_yukari1=1&(rxPacket->payload[5]);
+                buton_yukari2=2&(rxPacket->payload[5]);
+                buton_sol2=4&(rxPacket->payload[5]);
+                buton_sol1=8&(rxPacket->payload[5]);
+                buton_sag2=16&(rxPacket->payload[5]);
+                buton_sag1=32&(rxPacket->payload[5]);
+                buton_asagi1=64&(rxPacket->payload[5]);
+                buton_asagi2=128&(rxPacket->payload[5]);
+
+                buton_acil_stop=1&(rxPacket->payload[6]);
+                buton_kanca1=2&(rxPacket->payload[6]);
+                buton_kanca2=4&(rxPacket->payload[6]);
+
+                loadcell_1_=(rxPacket->payload[7]);
+                dara_1_=(rxPacket->payload[8]);
+                loadcell_2_=(rxPacket->payload[9]);
+                dara_2_=(rxPacket->payload[10]);
+
+
+                iButonBilgileri=0;
+                iTempButon=rxPacket->payload[6];
+                iTempButon=iTempButon<<16;
+                iButonBilgileri=iButonBilgileri+iTempButon;
+                iTempButon=rxPacket->payload[5];
+                iTempButon=iTempButon<<8;
+                iButonBilgileri=iButonBilgileri+iTempButon;
+                iTempButon=rxPacket->payload[4];
+                iTempButon=iTempButon<<0;
+                iButonBilgileri=iButonBilgileri+iTempButon;
+
+                roleCalismaFnx();////////////////////////////////////////////////////////////////////////////roleler atanmis butonlara gore calistirildigi fonksiyon
+
+
+
+                for (i = 0; i < 16; i++)
+                {
+                    if (doRole595Hc[i]>0)
+                    {
+                        PIN_setOutputValue(ledPinHandle, Led_Data,1);   //Data ledi açiliyor
+                    }
+                    else
+                    {
+                        PIN_setOutputValue(ledPinHandle, Led_Data,0);   //Data ledi kapaniyor
+                    }
+                }
+
+                //Rx led toggle
+                PIN_setOutputValue(pinHandle, Board_LED2,!PIN_getOutputValue(Board_LED2));
+                PIN_setOutputValue(ledPinHandle, Led_Receiving,!PIN_getOutputValue(Led_Receiving));     //Receiving ledi toggle
+
+                //Tx taskini aktif ediyor
+                Semaphore_post(txDoneSem);
+            }
+        }
+        //data alinmadigi durum
+        else
+        {
+            data_alinmadi++;
+        }
+    }
+    #endif
+
+    static void rfEasyLinkRxFnx(UArg arg0, UArg arg1)
+    {
+       CPUdelay(1000000);
+
+    for (j = 0; j < 2; j++)
+    {
+        i2ctxBuffer[0] = 0xFF; i2ctxBuffer[1] = 0x00; /*eeprom sayfa 0*/
+        i2cTransaction1.slaveAddress = 0x50;
+        i2cTransaction1.writeBuf = i2ctxBuffer;
+        i2cTransaction1.writeCount = 2;
+        i2cTransaction1.readBuf = i2crxBuffer;
+        i2cTransaction1.readCount = 0;
+        I2C_transfer(i2c, &i2cTransaction1);
+        printf("I2C 0. sayfa yazma islemi basarili\n");
+
+
+        for(i = 4; i < defEpromSayfa1YazmaAdedi*4; i=i+defEpromYazmaParcaAdedi)//eeprom dan datalar okundu
+        {
+            i2cTempWrite[0]=i;
+            CPUdelay(5);
+            I2C_close(i2c);
+            i2c = I2C_open(Board_I2C0, &i2cParams);
+            i2cTransaction3.slaveAddress = 0x50;
+            i2cTransaction3.writeBuf = i2cTempWrite;
+            i2cTransaction3.writeCount = 1;
+            i2cTransaction3.readBuf = i2cTempRead;
+            i2cTransaction3.readCount =defEpromYazmaParcaAdedi;
+            I2C_transfer(i2c, &i2cTransaction3);
+           // printf("read basarili\n");
+            Task_sleep(1000);
+            if (i%2)
+            {
+                PIN_setOutputValue(ledPinHandle, Board_LED2,!PIN_getOutputValue(Board_LED2)); //rx ledi toggle
+            }
+
+
+            watchdog_kickWatchdog();
+            for (j = 0; j < defEpromYazmaParcaAdedi; j++)
+            {
+                i2crxBuffer[i+j]=i2cTempRead[j];
+            }
+        }
+
+        for (i=1; i < defEpromSayfa1YazmaAdedi; i++)//epromdan alinan datalar birlestirildi. int8 datalar int32 olarak toplandi
+        {
+            uartAlinanDatalar[i]=0;
+            tempEprom=0;
+            tempEprom=i2crxBuffer[i*4+0];
+            uartAlinanDatalar[i]= uartAlinanDatalar[i]+tempEprom;
+            tempEprom=0;
+            tempEprom=i2crxBuffer[i*4+1]<<8;
+            uartAlinanDatalar[i]= uartAlinanDatalar[i]+tempEprom;
+            tempEprom=0;
+            tempEprom=i2crxBuffer[i*4+2]<<16;
+            uartAlinanDatalar[i]= uartAlinanDatalar[i]+tempEprom;
+            tempEprom=0;
+            tempEprom=i2crxBuffer[i*4+3]<<24;
+            uartAlinanDatalar[i]= uartAlinanDatalar[i]+tempEprom;
+        }
+    }
+
+        PIN_setOutputValue(ledPinHandle, Board_LED0,1);
+        PIN_setOutputValue(ledPinHandle, Board_LED1,0);
+        printf("Cihaz hazir\n");
+
+
+
+    /*EEPROM'dan okunan degerler degiskenlere atandi*/
+        CPUdelay(1000000);
+        iFrekans= (uint32_t)uartAlinanDatalar[1];
+        iKanal=(uint32_t)uartAlinanDatalar[2];
+        Tx_Rx_power_db=(uint32_t)uartAlinanDatalar[3]*0,14;
+        for (i = 0; i < 17; i++)
+        {
+            roleCekmeGecikme[i].PT=uartAlinanDatalar[i+5];//uart alinan data cekme timer pt ye atandi
+            roleBirakmaGecikme[i].PT=uartAlinanDatalar[i+21];//uart alinan data birakma timer pt ye atandi
+        }
+
+
+
+        //RF_init, frekans ve rf_power set etme bölümü
+        EasyLink_init(Tx_Rx_init);
+        EasyLink_setFrequency((iFrekans*Tx_Rx_frekans_kademesi)+Tx_Rx_baslangic_frekansi);
+
+        EasyLink_setRfPower(Tx_Rx_power_db);
+
+    #ifdef RFEASYLINKRX_ADDR_FILTER
+        uint8_t addrFilter = 0xaa;
+        EasyLink_enableRxAddrFilter(&addrFilter, 1, 1);
+    #endif //RFEASYLINKRX_ADDR_FILTER
+
+
+
+
+        while(1)
+        {
+    #ifdef RFEASYLINKRX_ASYNC
+
+            data_alinmadi++;
+            frekans_atlama_sayaci++;
+            //////////////
+
+            PIN_setOutputValue(ledPinHandle, ext_control_pin, !PIN_getOutputValue(ext_control_pin));
+            ///////////////
+            res1 = ADC_convert(adc1, &adcValue1);
+            if (res1 == ADC_STATUS_SUCCESS)
+            {
+                AN1=adcValue1;
+            }
+
+            res2 = ADC_convert(adc2, &adcValue2);
+            if (res2 == ADC_STATUS_SUCCESS)
+            {
+                AN2=adcValue2;
+            }
+
+            Dig1=!PIN_getInputValue(IOID_20);
+            Dig2=!PIN_getInputValue(IOID_21);
+            Dig3=!PIN_getInputValue(IOID_22);
+            Dig4=!PIN_getInputValue(IOID_23);
+
+
+
+            //alici kumanda verici kumanda ile belli bir süre haberlesmeme durumunda yapilacaklar
+            //tüm röleleri kapatma durumu
+            if(data_alinmadi>=data_alinmadi_zamani)
+            {
+                roleCalismaFnx();////////////////////////////////////////////////////////////////////////////roleler atanmis butonlara gore calistirildigi fonksiyon
+                rolecikis();
+                PIN_setOutputValue(ledPinHandle, Led_Receiving,0);  //Receiving ledi kapaniyor
+                PIN_setOutputValue(ledPinHandle, Led_Data,0);   //Data ledi kapaniyor
+            }
+
+
+            if(frekans_atlama_sayaci>=1825)  //4280 170ms    3450 135ms   7000 278ms  2140 85ms   2568 102ms   856 34ms   1825 72.5ms
+            {
+                frekans_atlama_sayaci=0;
+                gelen_paket_sayisi=gelen_paket_sayisi+3;
+            }
+
+            //watchdog resetleme durumu
+            watchdog_kickWatchdog();
+
+            PIN_setOutputValue(ledPinHandle, ext_control_pin, !PIN_getOutputValue(ext_control_pin));
+            //Alicinin Rx moda geçmesi
+            EasyLink_receiveAsync(rxDoneCb, 0);
+
+    #endif //RX_ASYNC
+        }
+    }
+
+    void rxTask_init(PIN_Handle ledPinHandle)
+    {
+        pinHandle = ledPinHandle;
+        Task_Params_init(&rxTaskParams);
+        rxTaskParams.stackSize = RFEASYLINKEX_TASK_STACK_SIZE;
+        rxTaskParams.priority = RFEASYLINKEX_TASK_PRIORITY;
+        rxTaskParams.stack = &rxTaskStack;
+        rxTaskParams.arg0 = (UInt)1000000;
+        Task_construct(&rxTask, rfEasyLinkRxFnx, &rxTaskParams, NULL);
+    }
+
+    void *uartThread(void *arg0)//uart programlama thread
+    {
+
+        const char  echoPrompt[] = "Echoing characters:\r\n";
+        UART_Handle uart;
+        UART_Params uartParams;
+
+        /* Call driver init functions */
+        GPIO_init();
+        UART_init();
+
+
+
+        /* Create a UART with data processing off. */
+        UART_Params_init(&uartParams);
+        uartParams.writeDataMode = UART_DATA_BINARY;
+        uartParams.readDataMode = UART_DATA_BINARY;
+        uartParams.readReturnMode = UART_RETURN_FULL;
+        uartParams.readEcho = UART_ECHO_OFF;
+        uartParams.baudRate = 115200;
+        uartParams.stopBits=UART_STOP_ONE;
+        uartParams.readTimeout=50000;
+        uartParams.writeTimeout=50000;
+
+        uart = UART_open(Board_UART0, &uartParams);
+
+        if (uart == NULL) {
+            /* UART_open() failed */
+            while (1);
+        }
+
+        UART_write(uart, echoPrompt, sizeof(echoPrompt));
+        /* Loop forever echoing */
+        while (1)
+        {
+            watchdog_kickWatchdog();
+            UART_read(uart, &input, defUartCharSize);
+            if (input[0]==97&& input[1]==114  &&  input[2]==108 /* && input[3]==101&& input[4]==110&& input[5]==116&& input[6]==117&& input[7]==115 && input[defUartCharSize-8]==42&& input[defUartCharSize-7]==99&& input[defUartCharSize-6]==111&& input[defUartCharSize-5]==110&& input[defUartCharSize-4]==116&& input[defUartCharSize-3]==114&& input[defUartCharSize-2]==111&& input[defUartCharSize-1]==108*/)
+            {
+                UART_write(uart, &input, defUartCharSize);
+              //  uint32_t i=0,j=0,k=0;//string donusum icin kullanildi
+                uint8_t y=0;
+                char marks[20],marks2[20];
+                /*---------------------------------------------------------------------------------------------------------UART tan alinan verilerin int32 olarak degiskene atamasi yapildi*/
+                while(i < defUartCharSize)
+                {
+                    sprintf(cTempDonusum, "%c", input[i]);//; noktali virgul karakteri algilanmasi icin donusum yapildi
+                   // if (cTempDonusum[0]=='c')
+                        if(k>=defUartAlinanAdet)
+                    {
+                                break;
+                    }
+                    if (cTempDonusum[0]==';')//noktali virgul varsa
+                    {
+                        i++;
+                    }
+                    else//noktali virgul yoksa
+                    {
+                        j=i;
+                        while(j<i+20)//diger noktali virgule kadar devam et
+                        {
+                            sprintf(cTempDonusum2, "%c", input[j]);//; noktali virgul karakteri algilanmasi icin donusum yapildi
+                            if (cTempDonusum2[0]==';')
+                            {
+                                uartAlinanDatalar[k]= atoi(combi3);
+                                combi3="";
+                                i=j;
+                                j=i+23;
+                                k++;
+                                y++;
+                            }
+                            else
+                            {
+                                strcpy(marks, combi3);
+                                strcpy(marks2, cTempDonusum2);
+                                combi3 = strcat (marks,marks2);
+                                j++;
+                            }
+                        }
+                    }
+                }
+
+
+
+                if(true)//crc ile kontrol edilecek
+                {
+                    for (i=0; i < defEpromSayfa1YazmaAdedi; i++)//uart'tan alinan datalar eeprom'a yazmak icin 4 e bolundu. int32 datalar int8 oldu*/
+                    {
+                        i2ctxBuffer[i*4+0] = uartAlinanDatalar[i]&(0x000000FF);
+                        i2ctxBuffer[i*4+1] = (uartAlinanDatalar[i] >> 8)&(0x000000FF);
+                        i2ctxBuffer[i*4+2] = (uartAlinanDatalar[i] >> 16)&(0x000000FF);
+                        i2ctxBuffer[i*4+3] = (uartAlinanDatalar[i] >> 24)&(0x000000FF);
+                    }
+
+                    i2ctxBuffer[0] = 0xFF; i2ctxBuffer[1] = 0x00; /*eeprom sayfa 0*/
+                    i2cTransaction1.slaveAddress = 0x50;
+                    i2cTransaction1.writeBuf = i2ctxBuffer;
+                    i2cTransaction1.writeCount = 2;
+                    i2cTransaction1.readBuf = i2crxBuffer;
+                    i2cTransaction1.readCount = 0;
+                    I2C_transfer(i2c, &i2cTransaction1);
+                    printf("I2C 0. sayfa yazma islemi basarili\n");
+
+                        tekrar_frekans:
+                        i=0,j=0;
+                        i2cTempWrite[0]=0;
+
+                            for(i = 4; i < defEpromSayfa1YazmaAdedi*4; i=i+defEpromYazmaParcaAdedi)//eeprom a datalar yazildi
+                            {
+                                for (j = 1; j < defEpromYazmaParcaAdedi+1; j++)//
+                                {
+                                    i2cTempWrite[j]=i2ctxBuffer[i+j-1];
+                                }
+                                i2cTempWrite[0]=i;
+                                CPUdelay(10);
+                                I2C_close(i2c);
+                                i2c = I2C_open(Board_I2C0, &i2cParams);
+                                i2cTransaction2.slaveAddress = 0x50;
+                                i2cTransaction2.writeBuf = i2cTempWrite;
+                                i2cTransaction2.writeCount = defEpromYazmaParcaAdedi+1;
+                                i2cTransaction2.readBuf = i2cTempRead;
+                                i2cTransaction2.readCount = 0;
+                                I2C_transfer(i2c, &i2cTransaction2);
+                                Task_sleep(1000);
+
+                                CPUdelay(10);
+                                I2C_close(i2c);
+                                i2c = I2C_open(Board_I2C0, &i2cParams);
+                                i2cTransaction3.slaveAddress = 0x50;
+                                i2cTransaction3.writeBuf = i2cTempWrite;
+                                i2cTransaction3.writeCount = 1;
+                                i2cTransaction3.readBuf = i2cTempRead;
+                                i2cTransaction3.readCount =defEpromYazmaParcaAdedi;
+                                I2C_transfer(i2c, &i2cTransaction3);
+                                Task_sleep(1000);
+                                PIN_setOutputValue(ledPinHandle, Board_LED2,!PIN_getOutputValue(Board_LED2)); //rx ledi toggle
+                                watchdog_kickWatchdog();
+                                for (j = 0; j < defEpromYazmaParcaAdedi; j++)
+                                {
+                                    i2crxBuffer[i+j]=i2cTempRead[j];
+                                }
+                            }
+
+                        i=0;
+                        for (i = 1; i < defEpromSayfa1YazmaAdedi*4; i++)//rx ve tx datalari ayni mi diye kontrol saglandi degilse tekrar yazma ve okuma yapmasi icin tekrar_frekansa yollandi
+                        {
+                            if(i2ctxBuffer[i]!=i2crxBuffer[i])
+                             {
+                                i2cDenemeSayisi++;
+                                goto tekrar_frekans;
+                             }
+                        }
+
+
+                        for (i=1; i < defEpromSayfa1YazmaAdedi; i++)//epromdan alinan datalar birlestirildi. int8 datalar int32 olarak toplandi
+                        {
+                            uartAlinanDatalar[i]=0;
+                            tempEprom=0;
+                            tempEprom=i2crxBuffer[i*4+0];
+                            uartAlinanDatalar[i]= uartAlinanDatalar[i]+tempEprom;
+                            tempEprom=0;
+                            tempEprom=i2crxBuffer[i*4+1]<<8;
+                            uartAlinanDatalar[i]= uartAlinanDatalar[i]+tempEprom;
+                            tempEprom=0;
+                            tempEprom=i2crxBuffer[i*4+2]<<16;
+                            uartAlinanDatalar[i]= uartAlinanDatalar[i]+tempEprom;
+                            tempEprom=0;
+                            tempEprom=i2crxBuffer[i*4+3]<<24;
+                            uartAlinanDatalar[i]= uartAlinanDatalar[i]+tempEprom;
+                        }
+
+                        for (i=0; i < defEpromSayfa2YazmaAdedi; i++)//uart'tan alinan datalar eeprom'a yazmak icin 4 e bolundu. int32 datalar int8 oldu*/
+                        {
+                            i2ctxBuffer[i*4+0] = uartAlinanDatalar[defEpromSayfa1YazmaAdedi+i]&(0x000000FF);
+                            i2ctxBuffer[i*4+1] = (uartAlinanDatalar[defEpromSayfa1YazmaAdedi+i] >> 8)&(0x000000FF);
+                            i2ctxBuffer[i*4+2] = (uartAlinanDatalar[defEpromSayfa1YazmaAdedi+i] >> 16)&(0x000000FF);
+                            i2ctxBuffer[i*4+3] = (uartAlinanDatalar[defEpromSayfa1YazmaAdedi+i] >> 24)&(0x000000FF);
+                        }
+
+
+                            printf("UART okundu ve EEPROM'a yazildi\n");
+
+                            PIN_setOutputValue(ledPinHandle, Board_LED0,1);
+                            PIN_setOutputValue(ledPinHandle, Board_LED1,0);
+
+
+                }
+                input[0]=98;
+            }
+            else
+            {
+                UART_write(uart, "yanlis dizilim\r\n ", defUartCharSize);
+            }
+        }
+    }
+
+    void taskTimer(UArg arg1)//tick=1ms
+    {
+            uint16_t i;
+            for (i = 0; i < 16; i++)//role sayisinca timer oldugundan 16 kez donduruldu
+            {
+                /*Role cekme gecikme zaman timer TON*/
+                if (roleCekmeGecikme[i].IN)//ton inputu geldiyse gecen zamani artir
+                    roleCekmeGecikme[i].ET++;
+                else
+                    roleCekmeGecikme[i].ET=0;
+
+                if (roleCekmeGecikme[i].ET>roleCekmeGecikme[i].PT)//ton et>pt oldugunda cikis ver
+                    roleCekmeGecikme[i].Q=true;
+                else
+                    roleCekmeGecikme[i].Q=false;
+
+                roleBirakmaGecikme[i].IN=roleCekmeGecikme[i].Q;
+                /*Role birakma gecikme zaman timer TOF*/
+                if (roleBirakmaGecikme[i].IN)//tof inputu geldiyse gecen zamani artir
+                {
+                    roleBirakmaGecikme[i].Q=true;
+                    roleBirakmaGecikme[i].ET=0;
+                }
+                if(roleBirakmaGecikme[i].IN==false && roleBirakmaGecikme[i].Q)
+                {
+                    roleBirakmaGecikme[i].ET++;
+                }
+
+                if ( roleBirakmaGecikme[i].ET>roleBirakmaGecikme[i].PT)//ton et>pt oldugunda cikis ver
+                {
+                    roleBirakmaGecikme[i].Q=false;
+                    roleBirakmaGecikme[i].ET=0;
+                }
+                if(!roleBirakmaGecikme[i].IN && !roleBirakmaGecikme[i].Q)
+                    roleBirakmaGecikme[i].ET=0;
+            }
+       // Task_yield();
+    }
+
+
+
+    int main(void)//main fonks
+     {
+
+        printf("\n");
+        /* Call board init functions. */
+        Board_initGeneral();                    //power init
+        Board_initADC();                        //ADC init
+        Board_initI2C();                        //i2c init
+
+        /* Open LED pins */
+        ledPinHandle = PIN_open(&ledPinState, pinTable);        //pin init
+        KumandaButonlarPinHandle = PIN_open(&KumandaButonlarPinState, KumandaButonlarPinTable); //Alýcý kumanda üzerindeki butonlar
+        KumandaLedPinHandle = PIN_open(&KumandaLedPinState, KumandaLedPinTable);                //Alýcý kumanda üzerindeki ledler
+
+
+
+        if(!ledPinHandle)
+        {
+            System_abort("Error initializing board LED pins\n");
+            printf("Error initializing board LED pins\n");
+        }
+
+        Error_init(&ebTaskTimer);
+        Clock_Params_init(&clockParamsTimer);
+        clockParamsTimer.period = 100;//1 milisecond
+        clockParamsTimer.startFlag = TRUE;
+        handleTaskTimer=Clock_create(taskTimer, 100, &clockParamsTimer, &ebTaskTimer);
+
+        if(handleTaskTimer==NULL)
+        {
+         System_abort("taskTimer create failed");
+        }
+
+
+        //i2c init
+        I2C_Params_init(&i2cParams);
+        i2cParams.bitRate = I2C_400kHz;
+        i2cParams.transferMode = I2C_MODE_CALLBACK;
+        i2cParams.transferCallbackFxn = transferCallback;
+        i2c = I2C_open(Board_I2C0, &i2cParams);
+        printf("I2C acildi\n");
+
+
+
+        ADC_Params_init(&ADCparams1);                               //ADC kanallarinin initi
+        adc1 = ADC_open(CC1350_LAUNCHXL_ADC4, &ADCparams1);
+        ADC_Params_init(&ADCparams2);
+        adc2 = ADC_open(CC1350_LAUNCHXL_ADC5, &ADCparams2);
+        printf("ADC baslatildi\n");
+
+
+        rolecikis();    //ilk durumda röle durumlari sifirlaniyor
+        PIN_setOutputValue(ledPinHandle, IOID_1,0);     //tx ledi açilista sifirlaniyor
+        PIN_setOutputValue(ledPinHandle, Board_LED2,0); //rx ledi açilista sifirlaniyor
+        PIN_setOutputValue(ledPinHandle, IOID_11,1);    //emniyet rölesi açiliyor
+        PIN_setOutputValue(ledPinHandle, Led_Power,1);  //Power Ledi açiliyor
+        PIN_setOutputValue(ledPinHandle, Led_Error,0);  //Error ledi kapaniyor
+        PIN_setOutputValue(ledPinHandle, Led_Receiving,0);  //Receiving ledi kapaniyor
+        PIN_setOutputValue(ledPinHandle, Led_Data,0);   //Data ledi kapaniyor
+        PIN_setOutputValue(ledPinHandle, ext_control_pin, 0);
+        //Seçme butonunun okunmasi
+        secme_buton=PIN_getInputValue(IOID_15);
+        aliciread165(); //alici üzerindeki dipswicthlerin okunmasi
+        aliciread165();
+        secme_buton=PIN_getInputValue(IOID_15);
+
+        //watchdog init yapiliyor
+        watchdog_init();
+        printf("watchdog baslatildi\n");
+        if (secme_buton==0)
+         {
+             pthread_t           thread;
+             pthread_attr_t      attrs;
+             struct sched_param  priParam;
+             int                 retc;
+
+             /* Initialize the attributes structure with default values */
+             pthread_attr_init(&attrs);
+
+             /* Set priority, detach state, and stack size attributes */
+             priParam.sched_priority = 1;
+             retc = pthread_attr_setschedparam(&attrs, &priParam);
+             retc |= pthread_attr_setdetachstate(&attrs, PTHREAD_CREATE_DETACHED);
+             retc |= pthread_attr_setstacksize(&attrs, THREADSTACKSIZE);
+             if (retc != 0) {
+                 /* failed to set attributes */
+                 while (1) {}
+             }
+             retc = pthread_create(&thread, &attrs, uartThread, NULL);
+             printf("uart programlama modu aktif\n");
+             if (retc != 0) {
+                 printf("uart programlama modu aktif edilemedi\n");
+                 while (1) {}
+             }
+         }
+         else
+         {
+             rxTask_init(ledPinHandle);  //tx taski init yapiliyor
+             txTask_init(ledPinHandle);  //rx taski init yapiliyor
+             printf("RX-TX modu aktif\n");
+
+         }
+
+        /* Start BIOS */
+        printf("BIOS baslatildi\n");
+        BIOS_start();
+        return (0);
+    }
